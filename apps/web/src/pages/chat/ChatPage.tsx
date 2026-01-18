@@ -1,41 +1,139 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSocket } from "@/context/SocketContext";
+import { api } from "@/lib/api";
+import { useChatStore } from "@/stores/useChatStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
+import { Send, Phone, Video, MoreVertical, MessageCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface Message {
     text: string;
     senderId: string;
     timestamp: Date;
+    sender?: { // Logic backend returns sender object
+        username: string;
+        avatar?: string;
+    }
 }
 
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
+    const { user } = useAuthStore();
+    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
+
+    // Local state to track which conversation we are currently showing messages for
+    // This helps avoid race conditions or flickering when switching
+    const [currentConvId, setCurrentConvId] = useState<string | null>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Fetch messages when activeConversationId changes
+    useEffect(() => {
+        if (!activeConversationId) return;
+
+        // Reset text when switching chats (optional, but good UX)
+        setInputText("");
+
+        const loadMessages = async () => {
+            try {
+                const res = await api.get(`/api/messages/${activeConversationId}`);
+                const mappedMessages = res.data.map((m: any) => ({
+                    text: m.content,
+                    senderId: m.senderId,
+                    timestamp: m.createdAt,
+                    sender: m.sender
+                }));
+                setMessages(mappedMessages);
+                setCurrentConvId(activeConversationId);
+
+                // Join socket room
+                if (socket) {
+                    socket.emit("join_room", activeConversationId);
+                }
+
+            } catch (error) {
+                console.error("Failed to load messages", error);
+            }
+        };
+
+        loadMessages();
+    }, [activeConversationId, socket]);
+
+    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputText(e.target.value);
+
+        if (!socket || !activeConversationId || !user) return;
+
+        // Emit typing
+        socket.emit("typing", { conversationId: activeConversationId, username: user.username });
+
+        // Debounce stop typing
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+        typingTimeoutRef.current = setTimeout(() => {
+            socket.emit("stop_typing", { conversationId: activeConversationId, username: user.username });
+        }, 2000);
+    };
 
     useEffect(() => {
         if (!socket) return;
 
-        socket.on("receive_message", (data: Message) => {
-            console.log("Receive:", data);
-            setMessages((prev) => [...prev, data]);
+        socket.on("receive_message", (data: any) => {
+            // Only append if it belongs to current conversation
+            if (data.conversationId === activeConversationId || activeConversationId === null) {
+                // Wait, if activeConversationId is null, we shouldn't act?
+                // If matches, append to UI
+            }
+
+            // BUT ALWAYS update sidebar last message regardless of active chat
+            // We need conversationId in data
+            if (data.conversationId) {
+                updateConversationLastMessage(data.conversationId, {
+                    content: data.text,
+                    createdAt: data.timestamp
+                });
+            }
+
+            // If this message belongs to active chat, add to list
+            if (currentConvId && data.conversationId === currentConvId) {
+                setMessages((prev) => [...prev, data]);
+            }
+        });
+
+        socket.on("typing", (data: any) => {
+            setTyping(data.conversationId, data.username, true);
+        });
+
+        socket.on("stop_typing", (data: any) => {
+            setTyping(data.conversationId, data.username, false);
         });
 
         return () => {
             socket.off("receive_message");
+            socket.off("typing");
+            socket.off("stop_typing");
         };
-    }, [socket]);
+    }, [socket, currentConvId, updateConversationLastMessage, setTyping]);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollIntoView({ behavior: "smooth" });
+        }
+    }, [messages]);
 
     const sendMessage = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!inputText.trim() || !socket) return;
+        if (!inputText.trim() || !socket || !user || !activeConversationId) return;
 
         const messageData = {
             text: inputText,
-            senderId: socket.id || "anonymous",
+            senderId: user.id,
+            conversationId: activeConversationId,
             timestamp: new Date(),
         };
 
@@ -43,58 +141,110 @@ export default function ChatPage() {
         setInputText("");
     };
 
+    if (!activeConversationId) {
+        return (
+            <div className="flex-1 flex items-center justify-center bg-slate-50 text-slate-400">
+                <div className="text-center">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                    <p>Select a contact to start chatting</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex flex-col h-screen bg-slate-50 p-4">
-            <Card className="flex-1 flex flex-col max-w-4xl w-full mx-auto">
-                <CardHeader className="border-b">
-                    <CardTitle className="flex justify-between items-center">
-                        <span>NhanZ Chat</span>
-                        <span className={`text-sm font-normal px-2 py-1 rounded-full ${isConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                            {isConnected ? "Online" : "Connecting..."}
-                        </span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-hidden p-0 flex flex-col">
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                        {messages.map((msg, index) => (
-                            <div
-                                key={index}
-                                className={`flex ${msg.senderId === socket?.id ? "justify-end" : "justify-start"}`}
-                            >
-                                <div
-                                    className={`max-w-[70%] rounded-lg px-4 py-2 ${msg.senderId === socket?.id
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-slate-200 text-slate-900"
-                                        }`}
-                                >
-                                    <p>{msg.text}</p>
-                                    <p className="text-xs opacity-70 mt-1">
-                                        {msg.senderId === socket?.id ? "You" : msg.senderId.substring(0, 6)}
-                                    </p>
+        <div className="flex-1 flex flex-col h-full bg-slate-50/50">
+            {/* Chat Header */}
+            <div className="h-16 border-b bg-white flex items-center justify-between px-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+                        <MessageCircle className="w-6 h-6 text-slate-500" />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-lg">Community Chat</h2>
+                        <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="icon"><Phone className="w-5 h-5 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon"><Video className="w-5 h-5 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon"><MoreVertical className="w-5 h-5 text-muted-foreground" /></Button>
+                </div>
+            </div>
+
+            {/* Chat Messages */}
+            <ScrollArea className="flex-1 p-4">
+                <div className="space-y-6 max-w-3xl mx-auto pb-4">
+                    {messages.length === 0 && (
+                        <div className="text-center py-10">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <MessageCircle className="w-8 h-8 text-slate-400" />
+                            </div>
+                            <h3 className="text-lg font-medium text-slate-900">Welcome to NhanZ Chat!</h3>
+                            <p className="text-muted-foreground">This is the start of your conversation.</p>
+                        </div>
+                    )}
+
+                    {messages.map((msg, idx) => {
+                        const isMe = msg.senderId === user?.id;
+                        return (
+                            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`flex items-end gap-2 max-w-[80%] ${isMe ? 'flex-row-reverse' : ''}`}>
+                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center font-bold text-xs">
+                                        {msg.sender?.username?.[0]?.toUpperCase() || "?"}
+                                    </div>
+                                    <div className={`p-3 rounded-2xl ${isMe
+                                        ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                        : 'bg-white border rounded-bl-sm'
+                                        }`}>
+                                        <p className="text-sm">{msg.text}</p>
+                                        <p className="text-[10px] opacity-70 mt-1">
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
-                        {messages.length === 0 && (
-                            <div className="text-center text-slate-400 mt-10">
-                                No messages yet. Say hello!
-                            </div>
-                        )}
-                    </div>
-                    <div className="p-4 border-t bg-white">
-                        <form onSubmit={sendMessage} className="flex gap-2">
-                            <Input
-                                value={inputText}
-                                onChange={(e) => setInputText(e.target.value)}
-                                placeholder="Type a message..."
-                                className="flex-1"
-                            />
-                            <Button type="submit" disabled={!isConnected || !inputText.trim()}>
-                                Send
-                            </Button>
-                        </form>
-                    </div>
-                </CardContent>
-            </Card>
+                        );
+                    })}
+                    <div ref={scrollRef} />
+                </div>
+            </ScrollArea>
+
+            {/* Typing Indicator */}
+            {activeConversationId && typingUsers[activeConversationId]?.length > 0 && (
+                <div className="px-4 py-2 text-xs text-muted-foreground italic animate-pulse">
+                    {typingUsers[activeConversationId].join(", ")} is typing...
+                </div>
+            )}
+
+            {/* Chat Input */}
+            <div className="p-4 bg-white border-t">
+                <form onSubmit={sendMessage} className="max-w-3xl mx-auto flex gap-3 relative">
+                    <Input
+                        value={inputText}
+                        onChange={handleInput}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                sendMessage(e);
+                            }
+                        }}
+                        placeholder="Type a message..."
+                        className="flex-1 min-h-[50px] pr-12 rounded-full bg-slate-50 border-slate-200 focus-visible:ring-1 focus-visible:ring-offset-0"
+                    />
+                    <Button
+                        type="submit"
+                        size="icon"
+                        className="absolute right-1.5 top-1.5 h-9 w-9 rounded-full"
+                        disabled={!inputText.trim() || !isConnected}
+                    >
+                        <Send className="w-4 h-4" />
+                    </Button>
+                </form>
+            </div>
         </div>
     );
 }

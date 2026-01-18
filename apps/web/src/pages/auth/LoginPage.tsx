@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { LoginSchema } from "@nhanz/shared";
 import { api } from "@/lib/api";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -27,12 +28,13 @@ export default function LoginPage() {
         },
     });
 
+    const login = useAuthStore((state) => state.login);
+
     async function onSubmit(values: z.infer<typeof LoginSchema>) {
         try {
             const res = await api.post("/api/auth/login", values);
-            console.log(res.data);
+            login(res.data.user, res.data.token);
             toast.success("Logged in successfully!");
-            // TODO: Save token
             navigate("/");
         } catch (error: any) {
             toast.error(error.response?.data?.error || "Login failed");

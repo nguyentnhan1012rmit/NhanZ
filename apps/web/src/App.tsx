@@ -5,9 +5,11 @@ import RegisterPage from "./pages/auth/RegisterPage";
 import { useState } from "react";
 import { SocketProvider } from "@/context/SocketContext";
 import ChatPage from "./pages/chat/ChatPage";
+import ChatLayout from "./pages/chat/ChatLayout";
+import { useAuthStore } from "./stores/useAuthStore";
 
 function App() {
-  const [user] = useState(true); // Mock user for now to access chat
+  const { isAuthenticated } = useAuthStore();
 
   return (
     <SocketProvider>
@@ -15,16 +17,9 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route
-            path="/"
-            element={
-              user ? (
-                <ChatPage />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
+          <Route path="/" element={isAuthenticated ? <ChatLayout /> : <Navigate to="/login" />}>
+            <Route index element={<ChatPage />} />
+          </Route>
         </Routes>
         <Toaster />
       </BrowserRouter>

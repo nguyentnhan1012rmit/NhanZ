@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import { API_URL } from "@nhanz/shared";
+import { API_URL } from "@/lib/api";
 
 interface SocketContextType {
     socket: Socket | null;

@@ -16,9 +16,11 @@ import { RegisterSchema } from "@nhanz/shared";
 import { api } from "@/lib/api";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function RegisterPage() {
     const navigate = useNavigate();
+    const login = useAuthStore((state) => state.login);
     const form = useForm<z.infer<typeof RegisterSchema>>({
         resolver: zodResolver(RegisterSchema),
         defaultValues: {
@@ -31,9 +33,9 @@ export default function RegisterPage() {
     async function onSubmit(values: z.infer<typeof RegisterSchema>) {
         try {
             const res = await api.post("/api/auth/register", values);
-            console.log(res.data);
-            toast.success("Registered successfully! Please login.");
-            navigate("/login");
+            login(res.data.user, res.data.token);
+            toast.success("Account created successfully!");
+            navigate("/");
         } catch (error: any) {
             toast.error(error.response?.data?.error || "Registration failed");
         }
@@ -44,7 +46,7 @@ export default function RegisterPage() {
             <Card className="w-full max-w-md">
                 <CardHeader>
                     <CardTitle>Create an account</CardTitle>
-                    <CardDescription>Join NhanZ to chat with friends</CardDescription>
+                    <CardDescription>Join NhanZ to connect with your friends</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Form {...form}>
@@ -56,7 +58,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Username</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Choose a username" {...field} />
+                                            <Input placeholder="johndoe" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -69,7 +71,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Enter your email" {...field} />
+                                            <Input placeholder="john@example.com" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -82,7 +84,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Password</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="Create a password" {...field} />
+                                            <Input type="password" placeholder="******" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

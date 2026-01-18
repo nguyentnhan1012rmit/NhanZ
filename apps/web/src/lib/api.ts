@@ -1,5 +1,5 @@
 import axios from "axios";
-import { API_URL } from "@nhanz/shared";
+export const API_URL = "http://localhost:4000";
 
 export const api = axios.create({
     baseURL: API_URL,
