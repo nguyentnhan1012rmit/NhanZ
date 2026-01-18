@@ -25,8 +25,14 @@ app.get("/", (req, res) => {
     res.send("NhanZ API is running");
 });
 
+
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+
+    socket.on("send_message", (data) => {
+        console.log("Message received:", data);
+        io.emit("receive_message", data); // Broadcast to all
+    });
 
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
