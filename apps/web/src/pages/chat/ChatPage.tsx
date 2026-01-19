@@ -18,10 +18,12 @@ interface Message {
     }
 }
 
+import { motion, AnimatePresence } from "framer-motion";
+
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
     const { user } = useAuthStore();
-    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping } = useChatStore();
+    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
 
@@ -84,6 +86,9 @@ export default function ChatPage() {
         if (!socket) return;
 
         socket.on("receive_message", (data: any) => {
+            // Ignore my own messages (handled optimistically)
+            if (data.senderId === user?.id) return;
+
             // Only append if it belongs to current conversation
             if (data.conversationId === activeConversationId || activeConversationId === null) {
                 // Wait, if activeConversationId is null, we shouldn't act?
@@ -137,6 +142,12 @@ export default function ChatPage() {
             timestamp: new Date(),
         };
 
+        // Optimistic Update
+        setMessages((prev) => [...prev, {
+            ...messageData,
+            sender: { username: user.username, avatar: user.avatar }
+        } as Message]);
+
         socket.emit("send_message", messageData);
         setInputText("");
     };
@@ -157,15 +168,45 @@ export default function ChatPage() {
             {/* Chat Header */}
             <div className="h-16 border-b bg-white flex items-center justify-between px-6">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-                        <MessageCircle className="w-6 h-6 text-slate-500" />
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
+                        {(() => {
+                            const conv = conversations.find(c => c.id === activeConversationId);
+                            const other = conv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
+                            const name = conv?.isGroup ? conv.name : other?.name || other?.username || "Unknown";
+                            const username = conv?.isGroup ? "" : other?.username;
+                            const avatar = conv?.isGroup ? null : other?.avatar;
+
+                            return (
+                                <>
+                                    {avatar ? (
+                                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <MessageCircle className="w-6 h-6 text-slate-500" />
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                     <div>
-                        <h2 className="font-semibold text-lg">Community Chat</h2>
-                        <div className="flex items-center gap-1.5">
-                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
-                        </div>
+                        {(() => {
+                            const conv = conversations.find(c => c.id === activeConversationId);
+                            const other = conv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
+                            const name = conv?.isGroup ? conv.name : other?.name || other?.username || "Unknown";
+                            const username = conv?.isGroup ? "" : other?.username;
+
+                            return (
+                                <>
+                                    <h2 className="font-semibold text-lg leading-tight">{name}</h2>
+                                    {username && <p className="text-xs text-muted-foreground">@{username}</p>}
+                                    {!username && (
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                                            <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
+                                        </div>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -188,27 +229,39 @@ export default function ChatPage() {
                         </div>
                     )}
 
-                    {messages.map((msg, idx) => {
-                        const isMe = msg.senderId === user?.id;
-                        return (
-                            <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`flex items-end gap-2 max-w-[80%] ${isMe ? 'flex-row-reverse' : ''}`}>
-                                    <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center font-bold text-xs">
-                                        {msg.sender?.username?.[0]?.toUpperCase() || "?"}
+                    <AnimatePresence>
+                        {messages.map((msg, idx) => {
+                            const isMe = msg.senderId === user?.id;
+                            return (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ duration: 0.2, ease: "easeOut" }}
+                                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div className={`flex items-end gap-2 max-w-[80%] ${isMe ? 'flex-row-reverse' : ''}`}>
+                                        <div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center font-bold text-xs overflow-hidden">
+                                            {msg.sender?.avatar ? (
+                                                <img src={msg.sender.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                msg.sender?.username?.[0]?.toUpperCase() || "?"
+                                            )}
+                                        </div>
+                                        <div className={`p-3 rounded-2xl shadow-sm ${isMe
+                                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                            : 'bg-white border rounded-bl-sm'
+                                            }`}>
+                                            <p className="text-sm">{msg.text}</p>
+                                            <p className="text-[10px] opacity-70 mt-1 select-none">
+                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className={`p-3 rounded-2xl ${isMe
-                                        ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                        : 'bg-white border rounded-bl-sm'
-                                        }`}>
-                                        <p className="text-sm">{msg.text}</p>
-                                        <p className="text-[10px] opacity-70 mt-1">
-                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
                     <div ref={scrollRef} />
                 </div>
             </ScrollArea>

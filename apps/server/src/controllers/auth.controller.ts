@@ -30,7 +30,7 @@ export const register = async (req: Request, res: Response) => {
                 email: data.email,
                 username: data.username,
                 password: hashedPassword,
-                name: data.username, // Default name to username
+                name: data.name,
             },
         });
 

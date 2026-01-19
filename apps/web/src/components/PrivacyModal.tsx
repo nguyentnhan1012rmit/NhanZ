@@ -2,6 +2,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 interface PrivacyModalProps {
     open: boolean;
@@ -9,6 +11,13 @@ interface PrivacyModalProps {
 }
 
 export function PrivacyModal({ open, onOpenChange }: PrivacyModalProps) {
+    // Status State
+    const { status, setStatus } = useAuthStore();
+
+    const handleStatusChange = (value: string) => {
+        setStatus(value);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
@@ -19,10 +28,34 @@ export function PrivacyModal({ open, onOpenChange }: PrivacyModalProps) {
                 <div className="grid gap-6 py-4">
                     <div className="flex items-center justify-between space-x-2">
                         <div className="grid gap-1.5">
-                            <Label htmlFor="online-status">Show Online Status</Label>
-                            <p className="text-sm text-muted-foreground">Allow others to see when you're active.</p>
+                            <Label>Status</Label>
+                            <p className="text-sm text-muted-foreground">How you appear to others.</p>
                         </div>
-                        <Switch id="online-status" defaultChecked />
+                        <Select value={status} onValueChange={handleStatusChange}>
+                            <SelectTrigger className="w-[140px]">
+                                <SelectValue placeholder="Select status" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="active">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                                        <span>Active</span>
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="dnd">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
+                                        <span>Do not disturb</span>
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="invisible">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                        <span>Disappear</span>
+                                    </div>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex items-center justify-between space-x-2">

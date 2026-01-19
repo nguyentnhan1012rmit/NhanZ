@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useChatStore } from "@/stores/useChatStore";
 
 export function Sidebar() {
-    const { user, logout } = useAuthStore();
+    const { user, logout, status } = useAuthStore();
     const { conversations, fetchUsers, fetchConversations, activeConversationId, setActiveConversation } = useChatStore();
 
     // Modal states
@@ -40,16 +40,18 @@ export function Sidebar() {
                                         user?.username?.[0]?.toUpperCase() || "U"
                                     )}
                                 </div>
-                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-background"></div>
+                                <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-background ${status === 'dnd' ? 'bg-yellow-500' :
+                                    status === 'invisible' ? 'bg-red-500' :
+                                        'bg-green-500'
+                                    }`}></div>
                             </div>
-                            <div className="flex flex-col">
-                                <p className="font-semibold text-sm leading-none">{user?.username}</p>
-                                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Online</p>
+                            <div className="flex flex-col justify-center">
+                                <p className="font-semibold text-sm leading-none">{user?.name || user?.username}</p>
                             </div>
                         </div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-56">
-                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                        <DropdownMenuLabel>@{user?.username}</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={() => setSettingsOpen(true)} className="cursor-pointer">
                             <User className="w-4 h-4 mr-2" />
@@ -103,7 +105,7 @@ export function Sidebar() {
                             conversations.map(c => {
                                 // Find name of other person
                                 const otherMember = c.members?.find((m: any) => m.user.username !== user?.username)?.user;
-                                const name = c.isGroup ? c.name : otherMember?.username || "Unknown";
+                                const name = c.isGroup ? c.name : otherMember?.name || otherMember?.username || "Unknown";
                                 const isActive = c.id === activeConversationId;
                                 const avatar = c.isGroup ? null : otherMember?.avatar;
 

@@ -144,7 +144,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="username">Username</Label>
-                            <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} />
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground text-sm">@</span>
+                                <Input
+                                    id="username"
+                                    value={username}
+                                    onChange={(e) => {
+                                        const val = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+                                        setUsername(val);
+                                    }}
+                                    className="pl-7"
+                                    maxLength={16}
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">Max 16 chars, letters & numbers only.</p>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>

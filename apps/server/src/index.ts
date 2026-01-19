@@ -73,12 +73,12 @@ io.on("connection", (socket) => {
                 }
             });
 
-            // Broadcast to all (or specific room if we implemented rooms)
-            // For now, Echo to everyone for the "Community Chat"
-            io.emit("receive_message", {
+            // Broadcast to specific room
+            io.to(data.conversationId).emit("receive_message", {
                 id: savedMessage.id,
                 text: savedMessage.content,
                 senderId: savedMessage.senderId,
+                conversationId: savedMessage.conversationId,
                 timestamp: savedMessage.createdAt,
                 sender: savedMessage.sender
             });
