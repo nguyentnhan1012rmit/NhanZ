@@ -7,6 +7,7 @@ interface User {
     username: string;
     avatar?: string;
     name?: string;
+    email?: string;
 }
 
 interface Conversation {

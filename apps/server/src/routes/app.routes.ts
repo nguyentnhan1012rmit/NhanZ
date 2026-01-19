@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getMyConversations, createOrGetConversation } from "../controllers/conversation.controller";
-import { getAllUsers } from "../controllers/user.controller";
+import { getAllUsers, updateProfile } from "../controllers/user.controller";
 import { updateAvatar, upload } from "../controllers/upload.controller";
 
 const router = Router();
@@ -11,6 +11,7 @@ router.post("/", createOrGetConversation);
 
 // Users (Contacts)
 router.get("/users", getAllUsers);
+router.put("/users/profile", updateProfile);
 
 // Uploads
 router.post("/users/avatar", upload.single("avatar"), updateAvatar);
