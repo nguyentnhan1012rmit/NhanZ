@@ -1,4 +1,4 @@
-import express from "express";
+import express from "express"; // Restart trigger
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
@@ -11,6 +11,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: "*", // Allow all for dev
+        methods: ["GET", "POST"]
     },
 });
 

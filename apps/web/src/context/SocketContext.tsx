@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { io, Socket } from "socket.io-client";
-import { API_URL } from "@/lib/api";
+import { Socket } from "socket.io-client";
+import { socket } from "@/socket";
 
 interface SocketContextType {
     socket: Socket | null;
@@ -15,29 +15,30 @@ const SocketContext = createContext<SocketContextType>({
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
+    const [isConnected, setIsConnected] = useState(socket.connected);
 
     useEffect(() => {
-        const newSocket = io(API_URL, {
-            transports: ["websocket"], // Force websocket to avoid polling issues
-            autoConnect: true,
-        });
-
-        newSocket.on("connect", () => {
-            console.log("Socket connected:", newSocket.id);
+        function onConnect() {
+            console.log("Socket connected:", socket.id);
             setIsConnected(true);
-        });
+        }
 
-        newSocket.on("disconnect", () => {
+        function onDisconnect() {
             console.log("Socket disconnected");
             setIsConnected(false);
-        });
+        }
 
-        setSocket(newSocket);
+        socket.on("connect", onConnect);
+        socket.on("disconnect", onDisconnect);
+        socket.connect();
 
         return () => {
-            newSocket.close();
+            socket.off("connect", onConnect);
+            socket.off("disconnect", onDisconnect);
+            // In dev (Strict Mode), we avoid disconnecting to prevent connection churning
+            if (process.env.NODE_ENV === "production") {
+                socket.disconnect();
+            }
         };
     }, []);
 
