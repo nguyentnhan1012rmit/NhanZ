@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { LogOut, Search, User, SquarePen, Lock, Shield, Moon, Sun } from "lucide-react";
+import { LogOut, Search, User, SquarePen, Lock, Shield, Moon, Sun, PieChart } from "lucide-react";
+import { Link } from "react-router-dom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PrivacyModal } from "@/components/PrivacyModal";
 import { SecurityModal } from "@/components/SecurityModal";
+import { AppearanceModal } from "@/components/AppearanceModal";
 import { NewChatModal } from "@/components/NewChatModal";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ export function Sidebar() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [privacyOpen, setPrivacyOpen] = useState(false);
     const [securityOpen, setSecurityOpen] = useState(false);
+    const [appearanceOpen, setAppearanceOpen] = useState(false);
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -77,6 +80,10 @@ export function Sidebar() {
                         <DropdownMenuItem onSelect={() => setSecurityOpen(true)} className="cursor-pointer">
                             <Shield className="w-4 h-4 mr-2" />
                             Security
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setAppearanceOpen(true)} className="cursor-pointer">
+                            <Sun className="w-4 h-4 mr-2" />
+                            Appearance
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer" onSelect={() => {
@@ -193,6 +200,7 @@ export function Sidebar() {
             <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
             <PrivacyModal open={privacyOpen} onOpenChange={setPrivacyOpen} />
             <SecurityModal open={securityOpen} onOpenChange={setSecurityOpen} />
+            <AppearanceModal open={appearanceOpen} onOpenChange={setAppearanceOpen} />
             <NewChatModal open={newChatOpen} onOpenChange={setNewChatOpen} />
         </div>
     );

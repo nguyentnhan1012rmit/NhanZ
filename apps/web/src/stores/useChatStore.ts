@@ -46,6 +46,7 @@ interface ChatState {
     toggleReaction: (messageId: string, emoji: string) => Promise<void>;
     editMessage: (messageId: string, content: string) => Promise<void>;
     deleteMessage: (messageId: string) => Promise<void>;
+    togglePinMessage: (messageId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -234,6 +235,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
             await api.delete(`/api/messages/${messageId}`);
         } catch (error) {
             console.error("Failed to delete message", error);
+        }
+    },
+
+    togglePinMessage: async (messageId) => {
+        try {
+            await api.post(`/api/messages/${messageId}/pin`);
+        } catch (error) {
+            console.error("Failed to toggle pin message", error);
         }
     }
 }));

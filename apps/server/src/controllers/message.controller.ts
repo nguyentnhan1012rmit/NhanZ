@@ -195,3 +195,37 @@ export const getReadReceipts = async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to fetch read receipts" });
     }
 };
+
+export const togglePinMessage = async (req: Request, res: Response) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.userId!;
+
+        const message = await prisma.message.findUnique({ where: { id: messageId } });
+        if (!message) return res.status(404).json({ error: "Message not found" });
+
+        const isPinned = !message.isPinned;
+
+        const updatedMessage = await prisma.message.update({
+            where: { id: messageId },
+            data: {
+                isPinned,
+                pinnedBy: isPinned ? userId : null,
+                pinnedAt: isPinned ? new Date() : null,
+            }
+        });
+
+        req.app.get("io").to(message.conversationId).emit("message_pinned", {
+            messageId,
+            conversationId: message.conversationId,
+            isPinned,
+            pinnedBy: isPinned ? userId : null,
+            pinnedAt: updatedMessage.pinnedAt
+        });
+
+        res.json(updatedMessage);
+    } catch (error) {
+        console.error("Toggle pin message error", error);
+        res.status(500).json({ error: "Failed to toggle pin" });
+    }
+};

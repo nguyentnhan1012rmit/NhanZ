@@ -62,6 +62,10 @@ model Message {
   attachmentUrl  String?
   attachmentType String?
 
+  isPinned       Boolean      @default(false)
+  pinnedBy       String?
+  pinnedAt       DateTime?
+
   replyToId      String?
   replyTo        Message?     @relation("MessageReplies", fields: [replyToId], references: [id])
   replies        Message[]    @relation("MessageReplies")

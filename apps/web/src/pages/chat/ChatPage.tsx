@@ -2,9 +2,11 @@ import { useEffect, useState, useRef } from "react";
 import { useSocket } from "@/context/SocketContext";
 import { api } from "@/lib/api";
 import { useChatStore } from "@/stores/useChatStore";
+import { useCallStore } from "@/stores/useCallStore";
+import { encryptMessage, decryptMessage } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -24,14 +26,19 @@ interface Message {
     deletedAt?: string;
     attachmentUrl?: string;
     attachmentType?: string;
+    isPinned?: boolean;
+    pinnedBy?: string;
+    translatedText?: string;
+    isTranslating?: boolean;
 }
 
 import { motion, AnimatePresence } from "framer-motion";
+import { useThemeStore } from "@/stores/useThemeStore";
 
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
     const { user } = useAuthStore();
-    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers, toggleReaction, editMessage, deleteMessage } = useChatStore();
+    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers, toggleReaction, editMessage, deleteMessage, togglePinMessage } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
     const [isMessagesLoading, setIsMessagesLoading] = useState(false);
@@ -41,11 +48,23 @@ export default function ChatPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [otherUserReadAt, setOtherUserReadAt] = useState<Date | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Local state to track which conversation we are currently showing messages for
     // This helps avoid race conditions or flickering when switching
     const [currentConvId, setCurrentConvId] = useState<string | null>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const { bubbleStyle, fontSize, chatDensity } = useThemeStore();
+
+    // Slash commands
+    const AI_COMMANDS = [
+        { cmd: "/ai summarize", desc: "Summarize the chat", icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
+        { cmd: "/ai translate ", desc: "Translate text", icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
+        { cmd: "/ai explain ", desc: "Explain a concept", icon: <Sparkles className="w-4 h-4 text-purple-400" /> }
+    ];
+    const filteredCommands = AI_COMMANDS.filter(c => c.cmd.toLowerCase().startsWith(inputText.toLowerCase()));
+    const showSlashMenu = inputText.startsWith("/") && filteredCommands.length > 0;
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const activeConvRef = useRef<string | null>(activeConversationId);
@@ -65,9 +84,10 @@ export default function ChatPage() {
             setIsMessagesLoading(true);
             try {
                 const res = await api.get(`/api/messages/${activeConversationId}`);
-                const mappedMessages = res.data.map((m: any) => ({
+                
+                const mappedMessages = await Promise.all(res.data.map(async (m: any) => ({
                     id: m.id,
-                    text: m.content,
+                    text: await decryptMessage(m.content, activeConversationId),
                     senderId: m.senderId,
                     timestamp: m.createdAt,
                     sender: m.sender,
@@ -76,7 +96,8 @@ export default function ChatPage() {
                     deletedAt: m.deletedAt,
                     attachmentUrl: m.attachmentUrl,
                     attachmentType: m.attachmentType
-                }));
+                })));
+                
                 setMessages(mappedMessages);
                 setCurrentConvId(activeConversationId);
 
@@ -126,15 +147,20 @@ export default function ChatPage() {
     useEffect(() => {
         if (!socket) return;
 
-        socket.on("receive_message", (data: any) => {
+        socket.on("receive_message", async (data: any) => {
             // Ignore my own messages (handled optimistically)
             if (data.senderId === user?.id) return;
 
+            // Decrypt message
+            let decryptedText = data.text;
+            if (data.conversationId) {
+                decryptedText = await decryptMessage(data.text, data.conversationId);
+            }
+
             // BUT ALWAYS update sidebar last message regardless of active chat
-            // We need conversationId in data
             if (data.conversationId) {
                 updateConversationLastMessage(data.conversationId, {
-                    content: data.text,
+                    content: decryptedText,
                     createdAt: data.timestamp
                 });
 
@@ -144,7 +170,7 @@ export default function ChatPage() {
             }
 
             if (data.conversationId === activeConvRef.current) {
-                setMessages((prev) => [...prev, data]);
+                setMessages((prev) => [...prev, { ...data, text: decryptedText }]);
             }
         });
 
@@ -192,6 +218,12 @@ export default function ChatPage() {
             }
         });
 
+        socket.on("message_pinned", (data: any) => {
+            if (data.conversationId === activeConvRef.current) {
+                setMessages((prev) => prev.map(m => m.id === data.messageId ? { ...m, isPinned: data.isPinned, pinnedBy: data.pinnedBy } : m));
+            }
+        });
+
         return () => {
             socket.off("receive_message");
             socket.off("typing");
@@ -200,6 +232,7 @@ export default function ChatPage() {
             socket.off("message_edited");
             socket.off("message_deleted");
             socket.off("messages_read");
+            socket.off("message_pinned");
         };
     }, [socket, currentConvId, updateConversationLastMessage, setTyping]);
 
@@ -250,7 +283,7 @@ export default function ChatPage() {
             editMessage(editingMessageId, inputText);
             setEditingMessageId(null);
         } else {
-            // Optimistic Update
+            // Optimistic Update (Unencrypted for UI)
             setMessages((prev) => [...prev, {
                 ...messageData,
                 id: `temp-${Date.now()}`,
@@ -258,10 +291,26 @@ export default function ChatPage() {
                 replyTo: replyToMessage
             } as Message]);
 
-            socket.emit("send_message", messageData);
+            // Encrypt before sending over the wire
+            const encryptedText = await encryptMessage(inputText, activeConversationId);
+            
+            socket.emit("send_message", { ...messageData, text: encryptedText });
         }
         setInputText("");
         setReplyToMessage(null);
+    };
+
+    const handleTranslate = async (messageId: string, text: string) => {
+        setMessages((prev) => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
+        
+        // Mock translation delay
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        setMessages((prev) => prev.map(m => m.id === messageId ? { 
+            ...m, 
+            isTranslating: false,
+            translatedText: `[Translation]: ${text.split(' ').reverse().join(' ')}` 
+        } : m));
     };
 
     const activeConv = conversations.find(c => c.id === activeConversationId);
@@ -297,7 +346,14 @@ export default function ChatPage() {
                         )}
                     </div>
                     <div>
-                        <h2 className="font-semibold text-lg leading-tight text-foreground">{chatName}</h2>
+                        <h2 className="font-semibold text-lg leading-tight text-foreground flex items-center gap-2">
+                            {chatName}
+                            {!activeConv?.isGroup && (
+                                <span title="Messages are end-to-end encrypted" className="cursor-help flex items-center justify-center p-1 bg-green-500/20 text-green-500 rounded-full">
+                                    <Lock className="w-3 h-3" />
+                                </span>
+                            )}
+                        </h2>
                         {!activeConv?.isGroup ? (
                             <p className="text-xs flex items-center gap-1.5 mt-0.5">
                                 <span className={`w-2 h-2 rounded-full ${isOtherUserOnline ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-slate-500'}`} />
@@ -308,16 +364,41 @@ export default function ChatPage() {
                         )}
                     </div>
                 </div>
+                
+                {/* E2EE Banner for direct messages */}
+                {!activeConv?.isGroup && (
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-2 bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] px-3 py-0.5 rounded-b-lg backdrop-blur-md flex items-center gap-1 shadow-sm">
+                        <Lock className="w-2.5 h-2.5" />
+                        End-to-End Encrypted
+                    </div>
+                )}
+
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="hover:bg-white/5"><Phone className="w-5 h-5 text-muted-foreground" /></Button>
-                    <Button variant="ghost" size="icon" className="hover:bg-white/5"><Video className="w-5 h-5 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon" className="hover:bg-white/5" onClick={() => {
+                        if (socket && otherUser) {
+                            socket.emit("call_initiate", { targetUserId: otherUser.id, callerId: user?.id, callerName: user?.name || user?.username, isVideo: false });
+                            useCallStore.getState().setCallData(otherUser.id, otherUser.name || otherUser.username, false);
+                            useCallStore.getState().setCallStatus('calling');
+                        }
+                    }}>
+                        <Phone className="w-5 h-5 text-muted-foreground" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="hover:bg-white/5" onClick={() => {
+                        if (socket && otherUser) {
+                            socket.emit("call_initiate", { targetUserId: otherUser.id, callerId: user?.id, callerName: user?.name || user?.username, isVideo: true });
+                            useCallStore.getState().setCallData(otherUser.id, otherUser.name || otherUser.username, true);
+                            useCallStore.getState().setCallStatus('calling');
+                        }
+                    }}>
+                        <Video className="w-5 h-5 text-muted-foreground" />
+                    </Button>
                     <Button variant="ghost" size="icon" className="hover:bg-white/5"><MoreVertical className="w-5 h-5 text-muted-foreground" /></Button>
                 </div>
             </div>
 
             {/* Chat Messages */}
             <ScrollArea className="flex-1 p-4">
-                <div className="space-y-6 max-w-6xl mx-auto w-full pb-4 pt-4 px-2 md:px-6">
+                <div className={`${chatDensity === 'compact' ? 'space-y-2' : chatDensity === 'spacious' ? 'space-y-6' : 'space-y-4'} max-w-6xl mx-auto w-full pb-4 pt-4 px-2 md:px-6`}>
                     {isMessagesLoading ? (
                         <div className="space-y-6">
                             {[...Array(4)].map((_, i) => {
@@ -345,6 +426,7 @@ export default function ChatPage() {
                     <AnimatePresence>
                         {messages.map((msg, idx) => {
                             const isMe = msg.senderId === user?.id;
+                            const isAiBot = msg.sender?.id === "system-ai-bot";
                             return (
                                 <motion.div
                                     key={msg.id || idx}
@@ -356,11 +438,16 @@ export default function ChatPage() {
                                     <ContextMenu>
                                         <ContextMenuTrigger className={`flex items-end gap-2 max-w-[80%] ${isMe ? 'flex-row-reverse' : ''}`}>
                                             {!isMe && (
-                                                <div className="w-8 h-8 rounded-full bg-black/20 flex-shrink-0 flex items-center justify-center font-bold text-xs overflow-hidden border border-white/5">
-                                                    {msg.sender?.avatar ? (
-                                                        <img src={msg.sender.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        msg.sender?.username?.[0]?.toUpperCase() || "?"
+                                                <div className="relative">
+                                                    <div className="w-8 h-8 rounded-full bg-black/20 flex-shrink-0 flex items-center justify-center font-bold text-xs overflow-hidden border border-white/5">
+                                                        {msg.sender?.avatar ? (
+                                                            <img src={msg.sender.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            msg.sender?.username?.[0]?.toUpperCase() || "?"
+                                                        )}
+                                                    </div>
+                                                    {isAiBot && (
+                                                        <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-[8px] font-bold px-1 rounded-sm border border-background">AI</div>
                                                     )}
                                                 </div>
                                             )}
@@ -376,8 +463,10 @@ export default function ChatPage() {
                                                         <span className="truncate max-w-[150px]">{msg.replyTo.text || "Attachment"}</span>
                                                     </div>
                                                 )}
-                                                <div id={`msg-${msg.id}`} className={`p-3 rounded-2xl ${msg.deletedAt ? 'bg-white/5 border border-white/10 rounded-bl-sm text-muted-foreground italic' : isMe
-                                                    ? 'bg-gradient-to-r from-primary to-[#0284c7] text-white rounded-br-sm shadow-[0_4px_15px_rgba(14,165,233,0.2)] border-0'
+                                                <div id={`msg-${msg.id}`} className={`p-3 ${bubbleStyle === 'sharp' ? 'rounded-md' : bubbleStyle === 'cloud' ? 'rounded-[2rem]' : 'rounded-2xl'} ${
+                                                    msg.deletedAt ? 'bg-white/5 border border-white/10 rounded-bl-sm text-muted-foreground italic' 
+                                                    : isMe ? 'bg-gradient-to-r from-primary to-[#0284c7] text-white rounded-br-sm shadow-[0_4px_15px_rgba(14,165,233,0.2)] border-0'
+                                                    : isAiBot ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-purple-500/30 rounded-bl-sm text-foreground shadow-[0_0_15px_rgba(168,85,247,0.1)]'
                                                     : 'glass border border-white/10 rounded-bl-sm text-foreground'
                                                     }`}>
                                                     {!msg.deletedAt && msg.attachmentUrl && (
@@ -396,7 +485,20 @@ export default function ChatPage() {
                                                             </a>
                                                         )
                                                     )}
-                                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.deletedAt ? "This message was deleted" : msg.text}</p>
+                                                    <p className={`${fontSize === 'small' ? 'text-xs' : fontSize === 'large' ? 'text-base' : 'text-sm'} leading-relaxed whitespace-pre-wrap`}>{msg.deletedAt ? "This message was deleted" : msg.text}</p>
+                                                    
+                                                    {msg.isTranslating && (
+                                                        <div className="mt-2 text-xs italic opacity-70 flex items-center gap-2">
+                                                            <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.5 }}>Translating...</motion.span>
+                                                        </div>
+                                                    )}
+                                                    {msg.translatedText && !msg.deletedAt && (
+                                                        <div className="mt-2 pt-2 border-t border-white/10 text-xs italic opacity-90">
+                                                            <span className="font-semibold block mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Translation</span>
+                                                            {msg.translatedText}
+                                                        </div>
+                                                    )}
+
                                                     <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${msg.deletedAt ? 'opacity-50' : isMe ? 'opacity-80 text-white/80' : 'text-muted-foreground'}`}>
                                                         <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                                         {msg.editedAt && !msg.deletedAt && <span>(edited)</span>}
@@ -409,6 +511,11 @@ export default function ChatPage() {
                                                                 ) : (
                                                                     <span>✓✓</span>
                                                                 )}
+                                                            </span>
+                                                        )}
+                                                        {msg.isPinned && !msg.deletedAt && (
+                                                            <span className="text-yellow-400 ml-1 flex items-center" title="Pinned">
+                                                                <Pin className="w-2.5 h-2.5 inline" fill="currentColor" />
                                                             </span>
                                                         )}
                                                     </div>
@@ -443,6 +550,12 @@ export default function ChatPage() {
                                                     </ContextMenuItem>
                                                     <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => setReplyToMessage(msg as Message)}>
                                                         <CornerUpLeft className="w-4 h-4" /> Reply
+                                                    </ContextMenuItem>
+                                                    <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => handleTranslate(msg.id, msg.text)}>
+                                                        <Sparkles className="w-4 h-4" /> Translate
+                                                    </ContextMenuItem>
+                                                    <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => msg.id && togglePinMessage(msg.id)}>
+                                                        <Pin className="w-4 h-4" /> {msg.isPinned ? "Unpin" : "Pin"}
                                                     </ContextMenuItem>
                                                     
                                                     <ContextMenuSeparator className="bg-white/10" />
@@ -545,13 +658,44 @@ export default function ChatPage() {
                             </button>
                         </div>
                     )}
-                    <div className="flex gap-2 items-end z-10">
-                    <div className="relative flex-1 flex items-center">
-                        <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
+                    <div className="flex gap-2 items-end z-10 relative">
+                        <AnimatePresence>
+                            {showSlashMenu && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 10 }}
+                                    className="absolute bottom-[60px] left-12 w-64 glass border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 p-1"
+                                >
+                                    <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">AI Commands</div>
+                                    {filteredCommands.map(cmd => (
+                                        <div 
+                                            key={cmd.cmd} 
+                                            className="flex items-center gap-2 p-2 hover:bg-white/10 cursor-pointer rounded-lg transition-colors"
+                                            onClick={() => {
+                                                setInputText(cmd.cmd);
+                                                inputRef.current?.focus();
+                                            }}
+                                        >
+                                            <div className="bg-purple-500/20 p-1.5 rounded-md">
+                                                {cmd.icon}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-foreground">{cmd.cmd}</span>
+                                                <span className="text-[10px] text-muted-foreground">{cmd.desc}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                        <div className="relative flex-1 flex items-center">
+                            <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                         <Button type="button" onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon" className="absolute left-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-full z-10 w-9 h-9">
                             <Paperclip className="w-4 h-4" />
                         </Button>
                         <Input
+                            ref={inputRef}
                             value={inputText}
                             onChange={handleInput}
                             onKeyDown={(e) => {
