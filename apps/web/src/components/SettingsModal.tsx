@@ -116,7 +116,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] glass border-white/5 text-foreground">
                 <DialogHeader>
                     <DialogTitle>Edit Profile</DialogTitle>
                     <DialogDescription>Make changes to your profile here.</DialogDescription>
@@ -140,7 +140,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="name">Name</Label>
-                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" />
+                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" className="bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="username">Username</Label>
@@ -153,7 +153,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                                         const val = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
                                         setUsername(val);
                                     }}
-                                    className="pl-7"
+                                    className="pl-7 bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground"
                                     maxLength={16}
                                 />
                             </div>
@@ -161,14 +161,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input id="email" value={user.email || "No email"} disabled className="bg-muted opacity-70" />
+                            <Input id="email" value={user.email || "No email"} disabled className="bg-muted/50 border-white/10 opacity-70 text-foreground" />
                             <p className="text-[10px] text-muted-foreground">Email cannot be changed.</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={isLoading}>Save Changes</Button>
+                    <Button onClick={handleSave} disabled={isLoading} className="bg-gradient-to-r from-primary to-[#0284c7] hover:opacity-90 glow-sm border-0">Save Changes</Button>
                 </div>
             </DialogContent>
         </Dialog>

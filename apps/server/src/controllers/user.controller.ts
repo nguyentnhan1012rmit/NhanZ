@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 
 export const getAllUsers = async (req: Request, res: Response) => {
-    const currentUserId = req.headers['x-user-id'] as string;
+    const currentUserId = req.userId!;
 
     try {
         const users = await prisma.user.findMany({
@@ -26,7 +26,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 }
 
 export const updateProfile = async (req: Request, res: Response) => {
-    const currentUserId = req.headers['x-user-id'] as string;
+    const currentUserId = req.userId!;
     const { name, username } = req.body;
 
     if (!currentUserId) {

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
 import { useAuthStore } from "./useAuthStore";
+import { decryptMessage } from "@/lib/crypto";
 
 interface User {
     id: string;
@@ -24,16 +25,29 @@ interface ChatState {
     conversations: Conversation[];
     activeConversationId: string | null;
     isLoading: boolean;
+    onlineUsers: Set<string>;
+    unreadCounts: Record<string, number>;
+
+    setOnlineUsers: (users: string[]) => void;
+    addUserOnline: (userId: string) => void;
+    removeUserOffline: (userId: string) => void;
+    incrementUnreadCount: (conversationId: string) => void;
+    clearUnreadCount: (conversationId: string) => void;
 
     fetchUsers: () => Promise<void>;
     fetchConversations: () => Promise<void>;
     startConversation: (targetUserId: string) => Promise<void>;
+    createGroup: (name: string, userIds: string[]) => Promise<void>;
     setActiveConversation: (id: string) => void;
     updateConversationLastMessage: (conversationId: string, message: { content: string; createdAt: string }) => void;
 
-    // Typing state: conversationId -> [username1, username2]
     typingUsers: Record<string, string[]>;
     setTyping: (conversationId: string, username: string, isTyping: boolean) => void;
+
+    toggleReaction: (messageId: string, emoji: string) => Promise<void>;
+    editMessage: (messageId: string, content: string) => Promise<void>;
+    deleteMessage: (messageId: string) => Promise<void>;
+    togglePinMessage: (messageId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -41,9 +55,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
     conversations: [],
     activeConversationId: null,
     isLoading: false,
+    onlineUsers: new Set(),
+    unreadCounts: {},
+
+    setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
+    addUserOnline: (userId) => set((state) => {
+        const newSet = new Set(state.onlineUsers);
+        newSet.add(userId);
+        return { onlineUsers: newSet };
+    }),
+    removeUserOffline: (userId) => set((state) => {
+        const newSet = new Set(state.onlineUsers);
+        newSet.delete(userId);
+        return { onlineUsers: newSet };
+    }),
+    incrementUnreadCount: (conversationId) => set((state) => ({
+        unreadCounts: {
+            ...state.unreadCounts,
+            [conversationId]: (state.unreadCounts[conversationId] || 0) + 1
+        }
+    })),
+    clearUnreadCount: (conversationId) => set((state) => ({
+        unreadCounts: {
+            ...state.unreadCounts,
+            [conversationId]: 0
+        }
+    })),
 
     fetchUsers: async () => {
         try {
+            set({ isLoading: true });
             const user = useAuthStore.getState().user;
             if (!user) return;
 
@@ -54,20 +95,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
             set({ users: res.data });
         } catch (error) {
             console.error("Failed to fetch users", error);
+        } finally {
+            set({ isLoading: false });
         }
     },
 
     fetchConversations: async () => {
         try {
+            set({ isLoading: true });
             const user = useAuthStore.getState().user;
             if (!user) return;
 
             const res = await api.get("/api/app", {
                 headers: { 'x-user-id': user.id }
             });
-            set({ conversations: res.data });
+            
+            const decryptedConversations = await Promise.all(res.data.map(async (c: any) => {
+                if (c.lastMessage) {
+                    c.lastMessage.content = await decryptMessage(c.lastMessage.content, c.id);
+                }
+                return c;
+            }));
+            
+            set({ conversations: decryptedConversations });
         } catch (error) {
             console.error("Failed to fetch conversations", error);
+        } finally {
+            set({ isLoading: false });
         }
     },
 
@@ -102,7 +156,35 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
     },
 
-    setActiveConversation: (id) => set({ activeConversationId: id }),
+    createGroup: async (name, userIds) => {
+        try {
+            set({ isLoading: true });
+            const user = useAuthStore.getState().user;
+            if (!user) return;
+
+            const res = await api.post("/api/app/group", { name, userIds }, {
+                headers: { 'x-user-id': user.id }
+            });
+
+            const newConv = res.data;
+            set((state) => ({
+                conversations: [newConv, ...state.conversations],
+                activeConversationId: newConv.id
+            }));
+
+            // Reload conversations to get full member details
+            get().fetchConversations();
+        } catch (error) {
+            console.error("Failed to create group", error);
+        } finally {
+            set({ isLoading: false });
+        }
+    },
+
+    setActiveConversation: (id) => {
+        set({ activeConversationId: id });
+        useChatStore.getState().clearUnreadCount(id);
+    },
 
     updateConversationLastMessage: (conversationId, message) => set((state) => {
         const updatedConversations = state.conversations.map(c => {
@@ -116,10 +198,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             return c;
         });
 
-        // Sort by updatedAt desc
         updatedConversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-        updatedConversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
         return { conversations: updatedConversations };
     }),
@@ -141,5 +221,37 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 [conversationId]: newTyping
             }
         };
-    })
+    }),
+
+    toggleReaction: async (messageId, emoji) => {
+        try {
+            await api.post(`/api/messages/${messageId}/react`, { emoji });
+        } catch (error) {
+            console.error("Failed to toggle reaction", error);
+        }
+    },
+
+    editMessage: async (messageId, content) => {
+        try {
+            await api.put(`/api/messages/${messageId}`, { content });
+        } catch (error) {
+            console.error("Failed to edit message", error);
+        }
+    },
+
+    deleteMessage: async (messageId) => {
+        try {
+            await api.delete(`/api/messages/${messageId}`);
+        } catch (error) {
+            console.error("Failed to delete message", error);
+        }
+    },
+
+    togglePinMessage: async (messageId) => {
+        try {
+            await api.post(`/api/messages/${messageId}/pin`);
+        } catch (error) {
+            console.error("Failed to toggle pin message", error);
+        }
+    }
 }));

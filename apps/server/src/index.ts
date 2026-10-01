@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
+export const io = new Server(httpServer, {
     cors: {
         origin: "*", // Allow all for dev
         methods: ["GET", "POST"]
@@ -19,21 +19,41 @@ import authRoutes from "./routes/auth.routes";
 import appRoutes from "./routes/app.routes";
 import messageRoutes from "./routes/message.routes";
 import prisma from "./lib/prisma";
+import { authMiddleware } from "./lib/authMiddleware";
+import { ensureAIBot, generateAIResponse, AI_BOT_ID } from "./lib/ai";
 
 app.use(cors());
 app.use(express.json());
+app.set("io", io);
 
 app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
-app.use("/api/app", appRoutes);
+app.use("/api/messages", authMiddleware, messageRoutes);
+app.use("/api/app", authMiddleware, appRoutes);
 
 app.get("/", (req, res) => {
     res.send("NhanZ API is running");
 });
 
+const userSockets = new Map<string, Set<string>>();
 
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+    let currentUserId: string | null = null;
+
+    socket.on("user_online", (userId: string) => {
+        currentUserId = userId;
+        
+        if (!userSockets.has(userId)) {
+            userSockets.set(userId, new Set());
+            // Broadcast that this user is online
+            io.emit("user_online", userId);
+        }
+        userSockets.get(userId)!.add(socket.id);
+        
+        // Send the current online users to this socket
+        const onlineUsers = Array.from(userSockets.keys());
+        socket.emit("get_online_users", onlineUsers);
+    });
 
     // User joins a room (we'll use this later, for now everything is global)
     socket.on("join_room", (data) => {
@@ -61,6 +81,8 @@ io.on("connection", (socket) => {
                     content: data.text,
                     senderId: data.senderId,
                     conversationId: data.conversationId,
+                    ...(data.attachmentUrl && { attachmentUrl: data.attachmentUrl }),
+                    ...(data.attachmentType && { attachmentType: data.attachmentType }),
                 },
                 include: {
                     sender: {
@@ -80,20 +102,108 @@ io.on("connection", (socket) => {
                 senderId: savedMessage.senderId,
                 conversationId: savedMessage.conversationId,
                 timestamp: savedMessage.createdAt,
-                sender: savedMessage.sender
+                sender: savedMessage.sender,
+                attachmentUrl: savedMessage.attachmentUrl,
+                attachmentType: savedMessage.attachmentType
             });
+
+            // Intercept AI messages
+            if (data.text.trim().toLowerCase().startsWith("/ai") || data.text.trim().toLowerCase().startsWith("@ai")) {
+                // Background async task so we don't block
+                (async () => {
+                    try {
+                        const botResponse = await generateAIResponse(data.text);
+                        const aiMessage = await prisma.message.create({
+                            data: {
+                                content: botResponse,
+                                senderId: AI_BOT_ID,
+                                conversationId: data.conversationId,
+                            },
+                            include: {
+                                sender: {
+                                    select: {
+                                        id: true,
+                                        username: true,
+                                        avatar: true,
+                                    }
+                                }
+                            }
+                        });
+                        io.to(data.conversationId).emit("receive_message", {
+                            id: aiMessage.id,
+                            text: aiMessage.content,
+                            senderId: aiMessage.senderId,
+                            conversationId: aiMessage.conversationId,
+                            timestamp: aiMessage.createdAt,
+                            sender: aiMessage.sender
+                        });
+                    } catch (err) {
+                        console.error("AI Error:", err);
+                    }
+                })();
+            }
+
         } catch (error) {
             console.error("Error saving message", error);
         }
     });
 
+    // --- WebRTC Signaling ---
+    const relayToUser = (targetUserId: string, event: string, payload: any) => {
+        const sockets = userSockets.get(targetUserId);
+        if (sockets) {
+            sockets.forEach(id => io.to(id).emit(event, payload));
+        }
+    };
+
+    socket.on("call_initiate", (data: { targetUserId: string, callerId: string, callerName: string, isVideo: boolean }) => {
+        relayToUser(data.targetUserId, "call_incoming", data);
+    });
+
+    socket.on("call_accept", (data: { targetUserId: string, callerId: string }) => {
+        relayToUser(data.targetUserId, "call_accepted", data);
+    });
+
+    socket.on("call_reject", (data: { targetUserId: string }) => {
+        relayToUser(data.targetUserId, "call_rejected", data);
+    });
+
+    socket.on("call_end", (data: { targetUserId: string }) => {
+        relayToUser(data.targetUserId, "call_ended", data);
+    });
+
+    socket.on("webrtc_offer", (data: { targetUserId: string, offer: any }) => {
+        relayToUser(data.targetUserId, "webrtc_offer", data);
+    });
+
+    socket.on("webrtc_answer", (data: { targetUserId: string, answer: any }) => {
+        relayToUser(data.targetUserId, "webrtc_answer", data);
+    });
+
+    socket.on("webrtc_ice_candidate", (data: { targetUserId: string, candidate: any }) => {
+        relayToUser(data.targetUserId, "webrtc_ice_candidate", data);
+    });
+    // --- End WebRTC Signaling ---
+
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
+        if (currentUserId) {
+            const sockets = userSockets.get(currentUserId);
+            if (sockets) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) {
+                    userSockets.delete(currentUserId);
+                    io.emit("user_offline", currentUserId);
+                }
+            }
+        }
     });
 });
 
 const PORT = process.env.PORT || 4000;
 
-httpServer.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+ensureAIBot().then(() => {
+    httpServer.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
 });

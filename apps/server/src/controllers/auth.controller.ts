@@ -82,7 +82,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const changePassword = async (req: Request, res: Response) => {
-    const currentUserId = req.headers['x-user-id'] as string;
+    const currentUserId = req.userId!;
     const { currentPassword, newPassword } = req.body;
 
     if (!currentUserId) {

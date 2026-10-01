@@ -20,7 +20,7 @@ export function PrivacyModal({ open, onOpenChange }: PrivacyModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] glass border-white/5 text-foreground">
                 <DialogHeader>
                     <DialogTitle>Privacy Settings</DialogTitle>
                     <DialogDescription>Manage your privacy preferences.</DialogDescription>
@@ -75,7 +75,7 @@ export function PrivacyModal({ open, onOpenChange }: PrivacyModalProps) {
                     </div>
                 </div>
                 <div className="flex justify-end">
-                    <Button onClick={() => onOpenChange(false)}>Done</Button>
+                    <Button onClick={() => onOpenChange(false)} className="bg-gradient-to-r from-primary to-[#0284c7] hover:opacity-90 glow-sm border-0">Done</Button>
                 </div>
             </DialogContent>
         </Dialog>
