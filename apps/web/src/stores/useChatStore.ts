@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { api } from "@/lib/api";
 import { useAuthStore } from "./useAuthStore";
+import { decryptMessage } from "@/lib/crypto";
 
 interface User {
     id: string;
@@ -108,7 +109,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const res = await api.get("/api/app", {
                 headers: { 'x-user-id': user.id }
             });
-            set({ conversations: res.data });
+            
+            const decryptedConversations = await Promise.all(res.data.map(async (c: any) => {
+                if (c.lastMessage) {
+                    c.lastMessage.content = await decryptMessage(c.lastMessage.content, c.id);
+                }
+                return c;
+            }));
+            
+            set({ conversations: decryptedConversations });
         } catch (error) {
             console.error("Failed to fetch conversations", error);
         } finally {

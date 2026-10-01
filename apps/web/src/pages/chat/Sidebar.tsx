@@ -41,7 +41,7 @@ export function Sidebar() {
     }, []);
 
     return (
-        <div className="w-[340px] border-r border-white/5 bg-background/60 backdrop-blur-2xl flex flex-col h-full z-10 shadow-2xl">
+        <div className="w-full md:w-[340px] border-r border-white/5 bg-background/60 backdrop-blur-2xl flex flex-col h-full z-10 shadow-2xl">
             <div className="p-4 border-b flex items-center justify-between">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

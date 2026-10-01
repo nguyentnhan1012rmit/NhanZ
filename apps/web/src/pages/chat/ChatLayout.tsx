@@ -2,9 +2,11 @@ import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
 import { useThemeStore } from "@/stores/useThemeStore";
+import { useChatStore } from "@/stores/useChatStore";
 
 export default function ChatLayout() {
     const { backgroundPattern } = useThemeStore();
+    const { activeConversationId } = useChatStore();
 
     const getBackgroundStyle = () => {
         switch (backgroundPattern) {
@@ -22,11 +24,13 @@ export default function ChatLayout() {
     return (
         <div className="flex h-screen w-full bg-background bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/5 via-background to-background relative">
             <div className="absolute inset-0 z-0 opacity-50" style={getBackgroundStyle()} />
-            <div className="z-10 flex w-full h-full">
-            <Sidebar />
-            <main className="flex-1 flex flex-col overflow-hidden">
-                <Outlet />
-            </main>
+            <div className="z-10 flex w-full h-full relative">
+                <div className={`${activeConversationId ? 'hidden md:block' : 'w-full md:w-auto'} md:relative absolute inset-0 z-20`}>
+                    <Sidebar />
+                </div>
+                <main className={`${!activeConversationId ? 'hidden md:flex' : 'flex'} flex-1 flex-col overflow-hidden w-full h-full`}>
+                    <Outlet />
+                </main>
             </div>
             <CommandPalette />
         </div>

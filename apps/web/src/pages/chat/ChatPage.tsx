@@ -6,7 +6,7 @@ import { useCallStore } from "@/stores/useCallStore";
 import { encryptMessage, decryptMessage } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock, ChevronLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -38,7 +38,7 @@ import { useThemeStore } from "@/stores/useThemeStore";
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
     const { user } = useAuthStore();
-    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers, toggleReaction, editMessage, deleteMessage, togglePinMessage } = useChatStore();
+    const { activeConversationId, setActiveConversation, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers, toggleReaction, editMessage, deleteMessage, togglePinMessage } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
     const [isMessagesLoading, setIsMessagesLoading] = useState(false);
@@ -336,9 +336,12 @@ export default function ChatPage() {
     return (
         <div className="flex-1 flex flex-col h-full bg-transparent relative">
             {/* Chat Header */}
-            <div className="h-16 border-b border-white/5 glass flex items-center justify-between px-6 z-10 backdrop-blur-xl bg-background/40">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center overflow-hidden border border-white/5">
+            <div className="h-16 border-b border-white/5 glass flex items-center justify-between px-2 md:px-6 z-10 backdrop-blur-xl bg-background/40">
+                <div className="flex items-center gap-1 md:gap-3">
+                    <Button variant="ghost" size="icon" className="md:hidden mr-1" onClick={() => setActiveConversation(null)}>
+                        <ChevronLeft className="w-6 h-6" />
+                    </Button>
+                    <div className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center overflow-hidden border border-white/5 shrink-0">
                         {chatAvatar ? (
                             <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
                         ) : (
