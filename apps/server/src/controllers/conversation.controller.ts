@@ -6,7 +6,7 @@ export const getMyConversations = async (req: Request, res: Response) => {
     // We need the userId from the token. Authenticated middleware should attach it.
     // For now, we'll trust the query param or header until we have proper middleware typing
     // TODO: Use req.user.id from middleware
-    const userId = req.headers['x-user-id'] as string;
+    const userId = req.userId!;
 
     if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -56,7 +56,7 @@ export const getMyConversations = async (req: Request, res: Response) => {
 // Create or get existing 1-1 conversation
 export const createOrGetConversation = async (req: Request, res: Response) => {
     const { targetUserId } = req.body;
-    const currentUserId = req.headers['x-user-id'] as string;
+    const currentUserId = req.userId!;
 
     if (!currentUserId || !targetUserId) {
         return res.status(400).json({ error: "Missing user IDs" });
@@ -95,5 +95,37 @@ export const createOrGetConversation = async (req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to create conversation" });
+    }
+};
+
+// Create a group conversation
+export const createGroupConversation = async (req: Request, res: Response) => {
+    const { name, userIds } = req.body;
+    const currentUserId = req.userId!;
+
+    if (!currentUserId || !userIds || !Array.isArray(userIds) || userIds.length === 0 || !name) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        const membersData = [
+            { userId: currentUserId },
+            ...userIds.map(id => ({ userId: id }))
+        ];
+
+        const conversation = await prisma.conversation.create({
+            data: {
+                name,
+                isGroup: true,
+                members: {
+                    create: membersData
+                }
+            }
+        });
+
+        res.json(conversation);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to create group" });
     }
 };

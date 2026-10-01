@@ -19,21 +19,39 @@ import authRoutes from "./routes/auth.routes";
 import appRoutes from "./routes/app.routes";
 import messageRoutes from "./routes/message.routes";
 import prisma from "./lib/prisma";
+import { authMiddleware } from "./lib/authMiddleware";
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
-app.use("/api/messages", messageRoutes);
-app.use("/api/app", appRoutes);
+app.use("/api/messages", authMiddleware, messageRoutes);
+app.use("/api/app", authMiddleware, appRoutes);
 
 app.get("/", (req, res) => {
     res.send("NhanZ API is running");
 });
 
+const userSockets = new Map<string, Set<string>>();
 
 io.on("connection", (socket) => {
     console.log("User connected:", socket.id);
+    let currentUserId: string | null = null;
+
+    socket.on("user_online", (userId: string) => {
+        currentUserId = userId;
+        
+        if (!userSockets.has(userId)) {
+            userSockets.set(userId, new Set());
+            // Broadcast that this user is online
+            io.emit("user_online", userId);
+        }
+        userSockets.get(userId)!.add(socket.id);
+        
+        // Send the current online users to this socket
+        const onlineUsers = Array.from(userSockets.keys());
+        socket.emit("get_online_users", onlineUsers);
+    });
 
     // User joins a room (we'll use this later, for now everything is global)
     socket.on("join_room", (data) => {
@@ -89,6 +107,16 @@ io.on("connection", (socket) => {
 
     socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
+        if (currentUserId) {
+            const sockets = userSockets.get(currentUserId);
+            if (sockets) {
+                sockets.delete(socket.id);
+                if (sockets.size === 0) {
+                    userSockets.delete(currentUserId);
+                    io.emit("user_offline", currentUserId);
+                }
+            }
+        }
     });
 });
 

@@ -22,7 +22,7 @@ interface AuthenticatedRequest extends Request {
 export const updateAvatar = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
-        const userId = req.headers['x-user-id'] as string;
+        const userId = req.userId!;
         if (!userId) {
             return res.status(401).json({ error: "Unauthorized" });
         }

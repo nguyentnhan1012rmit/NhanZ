@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { LogOut, Search, User, SquarePen, Lock, Shield } from "lucide-react";
+import { LogOut, Search, User, SquarePen, Lock, Shield, Moon, Sun } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PrivacyModal } from "@/components/PrivacyModal";
@@ -12,14 +12,25 @@ import { Input } from "@/components/ui/input";
 import { useChatStore } from "@/stores/useChatStore";
 
 export function Sidebar() {
-    const { user, logout, status } = useAuthStore();
-    const { conversations, fetchUsers, fetchConversations, activeConversationId, setActiveConversation, isLoading } = useChatStore();
+    const { user, logout, status, theme, toggleTheme } = useAuthStore();
+    const { conversations, fetchUsers, fetchConversations, activeConversationId, setActiveConversation, isLoading, onlineUsers, unreadCounts } = useChatStore();
 
     // Modal states
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [privacyOpen, setPrivacyOpen] = useState(false);
     const [securityOpen, setSecurityOpen] = useState(false);
     const [newChatOpen, setNewChatOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+
+    const filteredConversations = conversations.filter(c => {
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        if (c.isGroup && c.name?.toLowerCase().includes(query)) return true;
+        
+        const otherMember = c.members?.find((m: any) => m.user.username !== user?.username)?.user;
+        const name = otherMember?.name || otherMember?.username || "Unknown";
+        return name.toLowerCase().includes(query);
+    });
 
     useEffect(() => {
         fetchUsers();
@@ -78,15 +89,25 @@ export function Sidebar() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat" className="hover:bg-primary/20 hover:text-primary transition-colors hover:shadow-[0_0_15px_rgba(14,165,233,0.3)]">
-                    <SquarePen className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle Theme" className="hover:bg-primary/20 hover:text-primary transition-colors">
+                        {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat" className="hover:bg-primary/20 hover:text-primary transition-colors hover:shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                        <SquarePen className="w-5 h-5" />
+                    </Button>
+                </div>
             </div>
 
             <div className="p-4">
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search messages..." className="pl-8 bg-black/20 border-white/10 focus-visible:ring-primary/50 transition-all glass" />
+                    <Input 
+                        placeholder="Search chats..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-8 bg-black/20 border-white/10 focus-visible:ring-primary/50 transition-all glass" 
+                    />
                 </div>
             </div>
 
@@ -109,14 +130,12 @@ export function Sidebar() {
                                     </div>
                                 ))}
                             </div>
-                        ) : conversations.length === 0 ? (
+                        ) : filteredConversations.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm">
-                                No conversations yet.
-                                <br />
-                                Start a new chat!
+                                {searchQuery ? "No chats found." : "No conversations yet.\nStart a new chat!"}
                             </div>
                         ) : (
-                            conversations.map(c => {
+                            filteredConversations.map(c => {
                                 // Find name of other person
                                 const otherMember = c.members?.find((m: any) => m.user.username !== user?.username)?.user;
                                 const name = c.isGroup ? c.name : otherMember?.name || otherMember?.username || "Unknown";
@@ -129,11 +148,16 @@ export function Sidebar() {
                                         onClick={() => setActiveConversation(c.id)}
                                         className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border-l-[3px] ${isActive ? 'bg-gradient-to-r from-primary/15 to-transparent border-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]' : 'border-transparent hover:bg-white/5 hover:border-white/20'}`}
                                     >
-                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                                            {avatar ? (
-                                                <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <User className="h-5 w-5 text-slate-500" />
+                                        <div className="relative">
+                                            <div className="w-10 h-10 rounded-full bg-black/20 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                                                {avatar ? (
+                                                    <img src={avatar} alt={name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <User className="h-5 w-5 text-muted-foreground" />
+                                                )}
+                                            </div>
+                                            {!c.isGroup && otherMember?.id && onlineUsers.has(otherMember.id) && (
+                                                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]"></div>
                                             )}
                                         </div>
                                         <div className="flex-1 overflow-hidden">
@@ -145,9 +169,16 @@ export function Sidebar() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-muted-foreground truncate">
-                                                {c.messages?.[0]?.content || "Start a conversation"}
-                                            </p>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm text-muted-foreground truncate pr-2">
+                                                    {c.messages?.[0]?.content || "Start a conversation"}
+                                                </p>
+                                                {unreadCounts[c.id] ? (
+                                                    <div className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 min-w-4 h-4 flex items-center justify-center rounded-full shrink-0">
+                                                        {unreadCounts[c.id]}
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </div>
                                 );

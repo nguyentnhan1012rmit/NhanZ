@@ -10,6 +10,8 @@ interface AuthState {
     checkAuth: () => Promise<void>;
     status: string;
     setStatus: (status: string) => void;
+    theme: 'dark' | 'light';
+    toggleTheme: () => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -41,5 +43,29 @@ export const useAuthStore = create<AuthState>((set) => ({
     setStatus: (status: string) => {
         localStorage.setItem('userStatus', status);
         set({ status });
+    },
+
+    theme: (localStorage.getItem('theme') as 'dark' | 'light') || 'dark',
+    toggleTheme: () => {
+        set((state) => {
+            const newTheme = state.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('theme', newTheme);
+            if (newTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            return { theme: newTheme };
+        });
     }
 }));
+
+// Initialize theme on load
+if (typeof document !== 'undefined') {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}

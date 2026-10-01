@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getMyConversations, createOrGetConversation } from "../controllers/conversation.controller";
+import { getMyConversations, createOrGetConversation, createGroupConversation } from "../controllers/conversation.controller";
 import { getAllUsers, updateProfile } from "../controllers/user.controller";
 import { updateAvatar, upload } from "../controllers/upload.controller";
 
@@ -8,6 +8,7 @@ const router = Router();
 // Conversations
 router.get("/", getMyConversations);
 router.post("/", createOrGetConversation);
+router.post("/group", createGroupConversation);
 
 // Users (Contacts)
 router.get("/users", getAllUsers);

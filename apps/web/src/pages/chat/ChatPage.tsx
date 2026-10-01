@@ -23,7 +23,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
     const { user } = useAuthStore();
-    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations } = useChatStore();
+    const { activeConversationId, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
     const [isMessagesLoading, setIsMessagesLoading] = useState(false);
@@ -105,6 +105,10 @@ export default function ChatPage() {
                     content: data.text,
                     createdAt: data.timestamp
                 });
+
+                if (data.conversationId !== activeConvRef.current) {
+                    useChatStore.getState().incrementUnreadCount(data.conversationId);
+                }
             }
 
             if (data.conversationId === activeConvRef.current) {
@@ -157,8 +161,8 @@ export default function ChatPage() {
     const activeConv = conversations.find(c => c.id === activeConversationId);
     const otherUser = activeConv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
     const chatName = activeConv?.isGroup ? activeConv.name : otherUser?.name || otherUser?.username || "Unknown";
-    const chatUsername = activeConv?.isGroup ? "" : otherUser?.username;
     const chatAvatar = activeConv?.isGroup ? null : otherUser?.avatar;
+    const isOtherUserOnline = otherUser?.id ? onlineUsers.has(otherUser.id) : false;
 
     if (!activeConversationId) {
         return (
@@ -188,12 +192,13 @@ export default function ChatPage() {
                     </div>
                     <div>
                         <h2 className="font-semibold text-lg leading-tight text-foreground">{chatName}</h2>
-                        {chatUsername && <p className="text-xs text-muted-foreground">@{chatUsername}</p>}
-                        {!chatUsername && (
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-red-500'}`} />
-                                <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
-                            </div>
+                        {!activeConv?.isGroup ? (
+                            <p className="text-xs flex items-center gap-1.5 mt-0.5">
+                                <span className={`w-2 h-2 rounded-full ${isOtherUserOnline ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-slate-500'}`} />
+                                <span className="text-muted-foreground">{isOtherUserOnline ? 'Online' : 'Offline'}</span>
+                            </p>
+                        ) : (
+                            <p className="text-xs text-muted-foreground">{activeConv.members?.length} members</p>
                         )}
                     </div>
                 </div>
@@ -269,16 +274,36 @@ export default function ChatPage() {
             </ScrollArea>
 
             {/* Typing Indicator */}
-            {activeConversationId && typingUsers[activeConversationId]?.length > 0 && (
-                <div className="px-6 py-2 text-xs text-primary font-medium flex items-center gap-2">
-                    <span className="flex space-x-1">
-                        <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1, delay: 0 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
-                        <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
-                        <motion.span animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
-                    </span>
-                    {typingUsers[activeConversationId].join(", ")} is typing
-                </div>
-            )}
+            <AnimatePresence>
+                {(() => {
+                    const typers = activeConversationId ? (typingUsers[activeConversationId] || []).filter(u => u !== user?.username) : [];
+                    if (typers.length === 0) return null;
+                    
+                    return (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="absolute bottom-24 left-8 z-20 flex items-center gap-3 bg-background/80 backdrop-blur-xl border border-white/10 px-4 py-2 rounded-full shadow-2xl"
+                        >
+                            <div className="flex space-x-1.5 py-1">
+                                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
+                                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.15 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
+                                <motion.span animate={{ y: [0, -3, 0] }} transition={{ repeat: Infinity, duration: 0.6, delay: 0.3 }} className="w-1.5 h-1.5 bg-primary rounded-full"></motion.span>
+                            </div>
+                            <span className="text-[11px] text-primary font-medium tracking-wide">
+                                {typers.length === 1 
+                                    ? <span className="text-foreground font-semibold">{typers[0]}</span> 
+                                    : typers.length === 2 
+                                        ? <><span className="text-foreground font-semibold">{typers[0]}</span> and <span className="text-foreground font-semibold">{typers[1]}</span></>
+                                        : <span className="text-foreground font-semibold">Multiple people</span>}
+                                {" "} {typers.length > 1 ? "are typing..." : "is typing..."}
+                            </span>
+                        </motion.div>
+                    );
+                })()}
+            </AnimatePresence>
 
             {/* Chat Input */}
             <div className="p-4 relative z-10 mt-auto">
