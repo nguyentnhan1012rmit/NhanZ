@@ -11,12 +11,12 @@ import {
     FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { RegisterSchema } from "@nhanz/shared";
 import { api } from "@/lib/api";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuthStore } from "@/stores/useAuthStore";
+import { AuthSidePanel } from "@/components/AuthSidePanel";
 
 export default function RegisterPage() {
     const navigate = useNavigate();
@@ -43,13 +43,18 @@ export default function RegisterPage() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-100 p-4">
-            <Card className="w-full max-w-md">
-                <CardHeader>
-                    <CardTitle>Create an account</CardTitle>
-                    <CardDescription>Join NhanZ to connect with your friends</CardDescription>
-                </CardHeader>
-                <CardContent>
+        <div className="flex min-h-screen bg-background">
+            <AuthSidePanel />
+            <div className="w-full lg:w-[40%] flex items-center justify-center p-8 relative">
+                {/* Mobile header (hidden on desktop) */}
+                <div className="absolute top-8 left-8 lg:hidden font-bold text-2xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">NhanZ</div>
+
+                <div className="w-full max-w-md space-y-8 glass p-8 rounded-3xl border border-white/5">
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold tracking-tight mb-2">Create an account</h2>
+                        <p className="text-muted-foreground">Join NhanZ to connect with your friends</p>
+                    </div>
+
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <FormField
@@ -59,7 +64,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="John Doe" {...field} />
+                                            <Input placeholder="John Doe" className="bg-black/20 border-white/10 focus-visible:ring-primary/50" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -72,7 +77,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Username</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="johndoe" {...field} />
+                                            <Input placeholder="johndoe" className="bg-black/20 border-white/10 focus-visible:ring-primary/50" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -85,7 +90,7 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="john@example.com" {...field} />
+                                            <Input placeholder="john@example.com" className="bg-black/20 border-white/10 focus-visible:ring-primary/50" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -98,25 +103,36 @@ export default function RegisterPage() {
                                     <FormItem>
                                         <FormLabel>Password</FormLabel>
                                         <FormControl>
-                                            <Input type="password" placeholder="******" {...field} />
+                                            <Input type="password" placeholder="******" className="bg-black/20 border-white/10 focus-visible:ring-primary/50" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
-                            <Button type="submit" className="w-full">
+                            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-[#0284c7] hover:opacity-90 glow-sm border-0 mt-4">
                                 Register
                             </Button>
                         </form>
                     </Form>
-                    <div className="mt-4 text-center text-sm">
+
+                    <div className="relative my-6">
+                        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border"></span></div>
+                        <div className="relative flex justify-center text-xs uppercase"><span className="bg-transparent px-2 text-muted-foreground">Or sign up with</span></div>
+                    </div>
+
+                    <div className="flex gap-4">
+                        <Button variant="outline" className="w-full glass border-white/10 hover:bg-white/5">GitHub</Button>
+                        <Button variant="outline" className="w-full glass border-white/10 hover:bg-white/5">Google</Button>
+                    </div>
+
+                    <div className="mt-6 text-center text-sm text-muted-foreground">
                         Already have an account?{" "}
-                        <Link to="/login" className="text-blue-600 hover:underline">
+                        <Link to="/login" className="text-primary hover:underline font-medium">
                             Login
                         </Link>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }

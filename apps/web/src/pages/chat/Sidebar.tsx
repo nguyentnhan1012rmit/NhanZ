@@ -13,7 +13,7 @@ import { useChatStore } from "@/stores/useChatStore";
 
 export function Sidebar() {
     const { user, logout, status } = useAuthStore();
-    const { conversations, fetchUsers, fetchConversations, activeConversationId, setActiveConversation } = useChatStore();
+    const { conversations, fetchUsers, fetchConversations, activeConversationId, setActiveConversation, isLoading } = useChatStore();
 
     // Modal states
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -27,20 +27,22 @@ export function Sidebar() {
     }, []);
 
     return (
-        <div className="w-80 border-r bg-muted/20 flex flex-col h-full">
+        <div className="w-[340px] border-r border-white/5 bg-background/60 backdrop-blur-2xl flex flex-col h-full z-10 shadow-2xl">
             <div className="p-4 border-b flex items-center justify-between">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity p-1 rounded-md -ml-1">
-                            <div className="relative">
-                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold overflow-hidden ring-2 ring-transparent group-hover:ring-border transition-all">
-                                    {user?.avatar ? (
-                                        <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        user?.username?.[0]?.toUpperCase() || "U"
-                                    )}
+                            <div className="relative group">
+                                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary to-accent p-[2px] flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+                                    <div className="w-full h-full rounded-full bg-card flex items-center justify-center overflow-hidden">
+                                        {user?.avatar ? (
+                                            <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="font-bold text-xs">{user?.username?.[0]?.toUpperCase() || "U"}</span>
+                                        )}
+                                    </div>
                                 </div>
-                                <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-background ${status === 'dnd' ? 'bg-yellow-500' :
+                                <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${status === 'dnd' ? 'bg-yellow-500' :
                                     status === 'invisible' ? 'bg-red-500' :
                                         'bg-green-500'
                                     }`}></div>
@@ -76,7 +78,7 @@ export function Sidebar() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat">
+                <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat" className="hover:bg-primary/20 hover:text-primary transition-colors hover:shadow-[0_0_15px_rgba(14,165,233,0.3)]">
                     <SquarePen className="w-5 h-5" />
                 </Button>
             </div>
@@ -84,7 +86,7 @@ export function Sidebar() {
             <div className="p-4">
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search messages..." className="pl-8" />
+                    <Input placeholder="Search messages..." className="pl-8 bg-black/20 border-white/10 focus-visible:ring-primary/50 transition-all glass" />
                 </div>
             </div>
 
@@ -95,7 +97,19 @@ export function Sidebar() {
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                             Recent Chats
                         </p>
-                        {conversations.length === 0 ? (
+                        {isLoading ? (
+                            <div className="space-y-2">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
+                                        <div className="w-10 h-10 rounded-full bg-white/10 shrink-0"></div>
+                                        <div className="flex-1 space-y-2 py-1">
+                                            <div className="h-4 bg-white/10 rounded w-1/2"></div>
+                                            <div className="h-3 bg-white/10 rounded w-3/4"></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : conversations.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm">
                                 No conversations yet.
                                 <br />
@@ -113,7 +127,7 @@ export function Sidebar() {
                                     <div
                                         key={c.id}
                                         onClick={() => setActiveConversation(c.id)}
-                                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${isActive ? 'bg-muted' : 'hover:bg-muted'}`}
+                                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border-l-[3px] ${isActive ? 'bg-gradient-to-r from-primary/15 to-transparent border-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]' : 'border-transparent hover:bg-white/5 hover:border-white/20'}`}
                                     >
                                         <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                                             {avatar ? (

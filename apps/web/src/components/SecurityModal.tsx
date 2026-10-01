@@ -68,7 +68,7 @@ export function SecurityModal({ open, onOpenChange }: SecurityModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] glass border-white/5 text-foreground">
                 <DialogHeader>
                     <DialogTitle>Security Settings</DialogTitle>
                     <DialogDescription>Manage your account security.</DialogDescription>
@@ -78,17 +78,17 @@ export function SecurityModal({ open, onOpenChange }: SecurityModalProps) {
                         <h4 className="font-medium leading-none">Change Password</h4>
                         <div className="grid gap-2">
                             <Label htmlFor="current-password">Current Password</Label>
-                            <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+                            <Input id="current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="new-password">New Password</Label>
-                            <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                            <Input id="new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="confirm-password">Confirm Password</Label>
-                            <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground" />
                         </div>
-                        <Button onClick={handleChangePassword} disabled={isLoading} className="w-full">
+                        <Button onClick={handleChangePassword} disabled={isLoading} className="w-full bg-gradient-to-r from-primary to-[#0284c7] hover:opacity-90 glow-sm border-0">
                             Update Password
                         </Button>
                     </div>

@@ -12,7 +12,7 @@ interface NewChatModalProps {
 }
 
 export function NewChatModal({ open, onOpenChange }: NewChatModalProps) {
-    const { users, fetchUsers, startConversation } = useChatStore();
+    const { users, fetchUsers, startConversation, isLoading } = useChatStore();
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
@@ -33,7 +33,7 @@ export function NewChatModal({ open, onOpenChange }: NewChatModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogContent className="sm:max-w-[500px] h-[600px] flex flex-col p-0 gap-0 overflow-hidden glass border-white/5 text-foreground">
                 <DialogHeader className="p-4 pb-2">
                     <DialogTitle>New Chat</DialogTitle>
                     <DialogDescription>Search for a user to start a conversation.</DialogDescription>
@@ -44,7 +44,7 @@ export function NewChatModal({ open, onOpenChange }: NewChatModalProps) {
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Search by name or username..."
-                            className="pl-9"
+                            className="pl-9 bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground glass"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -54,7 +54,19 @@ export function NewChatModal({ open, onOpenChange }: NewChatModalProps) {
                 <div className="flex-1 overflow-hidden">
                     <ScrollArea className="h-full">
                         <div className="p-2 pt-0">
-                            {filteredUsers.length === 0 ? (
+                            {isLoading ? (
+                                <div className="grid gap-1">
+                                    {[...Array(6)].map((_, i) => (
+                                        <div key={i} className="flex items-center gap-3 p-3 rounded-lg animate-pulse">
+                                            <div className="w-10 h-10 rounded-full bg-white/10 shrink-0"></div>
+                                            <div className="flex-1 space-y-2">
+                                                <div className="h-4 bg-white/10 rounded w-1/3"></div>
+                                                <div className="h-3 bg-white/10 rounded w-1/4"></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : filteredUsers.length === 0 ? (
                                 <div className="p-8 text-center text-muted-foreground">
                                     No users found.
                                 </div>
@@ -63,7 +75,7 @@ export function NewChatModal({ open, onOpenChange }: NewChatModalProps) {
                                     {filteredUsers.map(user => (
                                         <div
                                             key={user.id}
-                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
+                                            className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/20 transition-colors cursor-pointer group"
                                             onClick={() => handleStartChat(user.id)}
                                         >
                                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold overflow-hidden shrink-0">

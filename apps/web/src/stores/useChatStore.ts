@@ -44,6 +44,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     fetchUsers: async () => {
         try {
+            set({ isLoading: true });
             const user = useAuthStore.getState().user;
             if (!user) return;
 
@@ -54,11 +55,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
             set({ users: res.data });
         } catch (error) {
             console.error("Failed to fetch users", error);
+        } finally {
+            set({ isLoading: false });
         }
     },
 
     fetchConversations: async () => {
         try {
+            set({ isLoading: true });
             const user = useAuthStore.getState().user;
             if (!user) return;
 
@@ -68,6 +72,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             set({ conversations: res.data });
         } catch (error) {
             console.error("Failed to fetch conversations", error);
+        } finally {
+            set({ isLoading: false });
         }
     },
 

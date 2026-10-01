@@ -157,23 +157,23 @@ Transform the app from a generic Shadcn starter into a visually stunning dark-th
 ---
 
 ## Design Reference Checklist
-- [ ] No plain white/grey backgrounds remain
-- [ ] All interactive elements have hover/focus states
-- [ ] Gradient accent appears on primary actions
-- [ ] Glass effects on elevated surfaces
-- [ ] Consistent border-radius (rounded-xl default)
-- [ ] Custom scrollbars everywhere
-- [ ] Font is Inter throughout
-- [ ] Animations are smooth (60fps, reduced-motion respected)
+- [x] No plain white/grey backgrounds remain
+- [x] All interactive elements have hover/focus states
+- [x] Gradient accent appears on primary actions
+- [x] Glass effects on elevated surfaces
+- [x] Consistent border-radius (rounded-xl default)
+- [x] Custom scrollbars everywhere
+- [x] Font is Inter throughout
+- [x] Animations are smooth (60fps, reduced-motion respected)
 
 ## Done When
-- [ ] All 10 tasks checked off
-- [ ] App opens in dark mode by default
-- [ ] Login/Register pages have split-screen premium layout
-- [ ] Sidebar has glass effect with hover states
-- [ ] Chat bubbles use gradient (own) / glass (other)
-- [ ] Input area is floating pill with glass effect
-- [ ] All modals match dark theme
-- [ ] Loading states exist for async data
-- [ ] Scrollbars are themed
-- [ ] No visual regressions — all existing features still work
+- [x] All 10 tasks checked off
+- [x] App opens in dark mode by default
+- [x] Login/Register pages have split-screen premium layout
+- [x] Sidebar has glass effect with hover states
+- [x] Chat bubbles use gradient (own) / glass (other)
+- [x] Input area is floating pill with glass effect
+- [x] All modals match dark theme
+- [x] Loading states exist for async data
+- [x] Scrollbars are themed
+- [x] No visual regressions — all existing features still work
