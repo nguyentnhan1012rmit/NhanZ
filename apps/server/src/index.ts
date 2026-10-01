@@ -8,7 +8,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
+export const io = new Server(httpServer, {
     cors: {
         origin: "*", // Allow all for dev
         methods: ["GET", "POST"]
@@ -23,6 +23,7 @@ import { authMiddleware } from "./lib/authMiddleware";
 
 app.use(cors());
 app.use(express.json());
+app.set("io", io);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", authMiddleware, messageRoutes);
@@ -79,6 +80,8 @@ io.on("connection", (socket) => {
                     content: data.text,
                     senderId: data.senderId,
                     conversationId: data.conversationId,
+                    ...(data.attachmentUrl && { attachmentUrl: data.attachmentUrl }),
+                    ...(data.attachmentType && { attachmentType: data.attachmentType }),
                 },
                 include: {
                     sender: {
@@ -98,7 +101,9 @@ io.on("connection", (socket) => {
                 senderId: savedMessage.senderId,
                 conversationId: savedMessage.conversationId,
                 timestamp: savedMessage.createdAt,
-                sender: savedMessage.sender
+                sender: savedMessage.sender,
+                attachmentUrl: savedMessage.attachmentUrl,
+                attachmentType: savedMessage.attachmentType
             });
         } catch (error) {
             console.error("Error saving message", error);

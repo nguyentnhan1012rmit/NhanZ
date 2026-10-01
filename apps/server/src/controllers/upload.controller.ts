@@ -58,3 +58,34 @@ export const updateAvatar = async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to upload avatar" });
     }
 };
+
+export const uploadAttachment = async (req: Request, res: Response) => {
+    const authReq = req as AuthenticatedRequest;
+    try {
+        const userId = req.userId!;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        if (!authReq.file) {
+            return res.status(400).json({ error: "No file uploaded" });
+        }
+
+        const b64 = Buffer.from(authReq.file.buffer).toString("base64");
+        const dataURI = "data:" + authReq.file.mimetype + ";base64," + b64;
+        
+        const isImage = authReq.file.mimetype.startsWith("image/") || authReq.file.mimetype.startsWith("video/");
+        const resourceType = isImage ? "auto" : "raw"; // raw for PDF, etc.
+
+        const result = await cloudinary.uploader.upload(dataURI, {
+            folder: "nhanz_attachments",
+            resource_type: resourceType as any
+        });
+
+        res.json({ url: result.secure_url, type: isImage ? (authReq.file.mimetype.startsWith("video/") ? "video" : "image") : "file" });
+
+    } catch (error) {
+        console.error("Upload attachment failed:", error);
+        res.status(500).json({ error: "Failed to upload attachment" });
+    }
+};

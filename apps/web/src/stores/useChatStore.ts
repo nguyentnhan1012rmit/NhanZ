@@ -40,9 +40,12 @@ interface ChatState {
     setActiveConversation: (id: string) => void;
     updateConversationLastMessage: (conversationId: string, message: { content: string; createdAt: string }) => void;
 
-    // Typing state: conversationId -> [username1, username2]
     typingUsers: Record<string, string[]>;
     setTyping: (conversationId: string, username: string, isTyping: boolean) => void;
+
+    toggleReaction: (messageId: string, emoji: string) => Promise<void>;
+    editMessage: (messageId: string, content: string) => Promise<void>;
+    deleteMessage: (messageId: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -208,5 +211,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 [conversationId]: newTyping
             }
         };
-    })
+    }),
+
+    toggleReaction: async (messageId, emoji) => {
+        try {
+            await api.post(`/api/messages/${messageId}/react`, { emoji });
+        } catch (error) {
+            console.error("Failed to toggle reaction", error);
+        }
+    },
+
+    editMessage: async (messageId, content) => {
+        try {
+            await api.put(`/api/messages/${messageId}`, { content });
+        } catch (error) {
+            console.error("Failed to edit message", error);
+        }
+    },
+
+    deleteMessage: async (messageId) => {
+        try {
+            await api.delete(`/api/messages/${messageId}`);
+        } catch (error) {
+            console.error("Failed to delete message", error);
+        }
+    }
 }));
