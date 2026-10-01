@@ -116,10 +116,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             return c;
         });
 
-        // Sort by updatedAt desc
         updatedConversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-        updatedConversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
         return { conversations: updatedConversations };
     }),

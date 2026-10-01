@@ -33,6 +33,11 @@ export default function ChatPage() {
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const scrollRef = useRef<HTMLDivElement>(null);
+    const activeConvRef = useRef<string | null>(activeConversationId);
+
+    useEffect(() => {
+        activeConvRef.current = activeConversationId;
+    }, [activeConversationId]);
 
     // Fetch messages when activeConversationId changes
     useEffect(() => {
@@ -89,12 +94,6 @@ export default function ChatPage() {
             // Ignore my own messages (handled optimistically)
             if (data.senderId === user?.id) return;
 
-            // Only append if it belongs to current conversation
-            if (data.conversationId === activeConversationId || activeConversationId === null) {
-                // Wait, if activeConversationId is null, we shouldn't act?
-                // If matches, append to UI
-            }
-
             // BUT ALWAYS update sidebar last message regardless of active chat
             // We need conversationId in data
             if (data.conversationId) {
@@ -104,8 +103,7 @@ export default function ChatPage() {
                 });
             }
 
-            // If this message belongs to active chat, add to list
-            if (currentConvId && data.conversationId === currentConvId) {
+            if (data.conversationId === activeConvRef.current) {
                 setMessages((prev) => [...prev, data]);
             }
         });
@@ -152,6 +150,12 @@ export default function ChatPage() {
         setInputText("");
     };
 
+    const activeConv = conversations.find(c => c.id === activeConversationId);
+    const otherUser = activeConv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
+    const chatName = activeConv?.isGroup ? activeConv.name : otherUser?.name || otherUser?.username || "Unknown";
+    const chatUsername = activeConv?.isGroup ? "" : otherUser?.username;
+    const chatAvatar = activeConv?.isGroup ? null : otherUser?.avatar;
+
     if (!activeConversationId) {
         return (
             <div className="flex-1 flex items-center justify-center bg-slate-50 text-slate-400">
@@ -169,44 +173,21 @@ export default function ChatPage() {
             <div className="h-16 border-b bg-white flex items-center justify-between px-6">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden">
-                        {(() => {
-                            const conv = conversations.find(c => c.id === activeConversationId);
-                            const other = conv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
-                            const name = conv?.isGroup ? conv.name : other?.name || other?.username || "Unknown";
-                            const username = conv?.isGroup ? "" : other?.username;
-                            const avatar = conv?.isGroup ? null : other?.avatar;
-
-                            return (
-                                <>
-                                    {avatar ? (
-                                        <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <MessageCircle className="w-6 h-6 text-slate-500" />
-                                    )}
-                                </>
-                            );
-                        })()}
+                        {chatAvatar ? (
+                            <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
+                        ) : (
+                            <MessageCircle className="w-6 h-6 text-slate-500" />
+                        )}
                     </div>
                     <div>
-                        {(() => {
-                            const conv = conversations.find(c => c.id === activeConversationId);
-                            const other = conv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
-                            const name = conv?.isGroup ? conv.name : other?.name || other?.username || "Unknown";
-                            const username = conv?.isGroup ? "" : other?.username;
-
-                            return (
-                                <>
-                                    <h2 className="font-semibold text-lg leading-tight">{name}</h2>
-                                    {username && <p className="text-xs text-muted-foreground">@{username}</p>}
-                                    {!username && (
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                                            <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
-                                        </div>
-                                    )}
-                                </>
-                            );
-                        })()}
+                        <h2 className="font-semibold text-lg leading-tight">{chatName}</h2>
+                        {chatUsername && <p className="text-xs text-muted-foreground">@{chatUsername}</p>}
+                        {!chatUsername && (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span className="text-xs text-muted-foreground">{isConnected ? 'Online' : 'Disconnected'}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center gap-2">

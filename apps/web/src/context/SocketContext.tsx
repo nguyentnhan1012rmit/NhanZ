@@ -36,7 +36,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
             // In dev (Strict Mode), we avoid disconnecting to prevent connection churning
-            if (process.env.NODE_ENV === "production") {
+            if (import.meta.env.MODE === "production") {
                 socket.disconnect();
             }
         };

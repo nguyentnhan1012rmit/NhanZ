@@ -143,17 +143,7 @@ export function Sidebar() {
                 </div>
             </ScrollArea>
 
-            {/* Keeping the Create Group button or maybe removing it if New Chat covers it? 
-                The user didn't explicitly ask to remove the bottom button, but "New Chat" button usually handles 1-1. 
-                The prompt says "add friend", "new chat will be the icon...". 
-                I'll keep the bottom button but rename it to "New Group" maybe? 
-                Actually the original code had "New Conversation" button at bottom.
-                I'll leave it as is or maybe remove it if it's redundant.
-                The prompt implies the top icon is THE new chat button.
-                I will comment it out or remove it to reduce clutter if the top one works proficiently 
-                but let's keep it as a "Create Group" specific action later. 
-                For now, I'll remove it to be clean as per user request for "New chat will be the icon...".
-            */}
+
 
             <SettingsModal open={settingsOpen} onOpenChange={setSettingsOpen} />
             <PrivacyModal open={privacyOpen} onOpenChange={setPrivacyOpen} />

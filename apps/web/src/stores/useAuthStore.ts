@@ -30,17 +30,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     },
 
     checkAuth: async () => {
+        // TODO: Implement /api/auth/me endpoint to validate token
         const token = localStorage.getItem('token');
-        if (!token) return;
-
-        try {
-            // Note: In a real app, you'd have a /me endpoint to fetch current user details
-            // For now, we rely on what we have or re-fetch if needed.
-            // Since we don't have a /me endpoint yet, we'll assume the token is valid 
-            // but we won't have the user object if page reloaded.
-            // TODO: Implement /api/auth/me on backend to persist user object across reloads
-        } catch (error) {
-            localStorage.removeItem('token');
+        if (!token) {
             set({ user: null, token: null, isAuthenticated: false });
         }
     },
