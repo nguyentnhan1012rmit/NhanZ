@@ -75,7 +75,7 @@ export const decryptMessage = async (cipherTextBase64: string, conversationId: s
       const dec = new TextDecoder();
       return dec.decode(decrypted);
   } catch(e) {
-      console.error("Decryption failed", e);
-      return cipherTextBase64; // Return original if decryption fails
+      // Suppress logging of decryption failures, fallback to returning original string
+      return cipherTextBase64; 
   }
 };

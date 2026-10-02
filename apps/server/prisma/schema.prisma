@@ -16,6 +16,7 @@ model User {
   password  String
   name      String?
   avatar    String?
+  pushSubscription String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

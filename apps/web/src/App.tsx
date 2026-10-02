@@ -10,6 +10,7 @@ import { useAuthStore } from "./stores/useAuthStore";
 import { useThemeStore, AccentColor } from "./stores/useThemeStore";
 import { useEffect } from "react";
 import { CallModal } from "./components/CallModal";
+import { PushNotificationManager } from "./components/PushNotificationManager";
 
 const ACCENT_COLORS_MAP: Record<AccentColor, string> = {
   blue: "#0ea5e9",
@@ -42,6 +43,7 @@ function App() {
   return (
     <SocketProvider>
       <ThemeInjector />
+      <PushNotificationManager />
       <CallModal />
       <BrowserRouter>
         <Routes>

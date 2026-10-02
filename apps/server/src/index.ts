@@ -3,8 +3,15 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from "cors";
 import dotenv from "dotenv";
+import webPush from "web-push";
 
 dotenv.config();
+
+webPush.setVapidDetails(
+    'mailto:test@example.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+);
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,6 +30,24 @@ import { authMiddleware } from "./lib/authMiddleware";
 
 app.use(cors());
 app.use(express.json());
+
+// Endpoint to save push subscription
+app.post("/api/subscribe", authMiddleware, async (req: any, res: any) => {
+    try {
+        const userId = req.userId;
+        const subscription = req.body;
+
+        await prisma.user.update({
+            where: { id: userId },
+            data: { pushSubscription: JSON.stringify(subscription) }
+        });
+
+        res.status(201).json({ message: "Subscription saved." });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to save subscription" });
+    }
+});
 app.set("io", io);
 
 app.use("/api/auth", authRoutes);
@@ -106,10 +131,54 @@ io.on("connection", (socket) => {
                 attachmentType: savedMessage.attachmentType
             });
 
+            // Send push notifications
+            const conversation = await prisma.conversation.findUnique({
+                where: { id: data.conversationId },
+                include: { members: { include: { user: true } } }
+            });
+
+            if (conversation) {
+                const payload = JSON.stringify({
+                    title: `New message from ${savedMessage.sender.username}`,
+                    body: savedMessage.content || 'Sent an attachment',
+                    url: `/?conversation=${data.conversationId}`
+                });
+
+                for (const member of conversation.members) {
+                    if (member.userId !== data.senderId && member.user.pushSubscription) {
+                        try {
+                            const sub = JSON.parse(member.user.pushSubscription);
+                            await webPush.sendNotification(sub, payload);
+                        } catch (err) {
+                            console.error("Push notification failed", err);
+                        }
+                    }
+                }
+            }
+
 
 
         } catch (error) {
             console.error("Error saving message", error);
+        }
+    });
+
+    socket.on("mark_read", async (data: { conversationId: string, userId: string }) => {
+        try {
+            const now = new Date();
+            await prisma.readReceipt.upsert({
+                where: { userId_conversationId: { userId: data.userId, conversationId: data.conversationId } },
+                update: { lastReadAt: now },
+                create: { userId: data.userId, conversationId: data.conversationId, lastReadAt: now }
+            });
+            
+            socket.to(data.conversationId).emit("messages_read", {
+                conversationId: data.conversationId,
+                userId: data.userId,
+                lastReadAt: now
+            });
+        } catch(error) {
+            console.error("Error updating read receipt", error);
         }
     });
 

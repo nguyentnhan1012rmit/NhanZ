@@ -47,7 +47,10 @@ export default function RegisterPage() {
             <AuthSidePanel />
             <div className="w-full lg:w-[40%] flex items-center justify-center p-8 relative">
                 {/* Mobile header (hidden on desktop) */}
-                <div className="absolute top-8 left-8 lg:hidden font-bold text-2xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">NhanZ</div>
+                <div className="absolute top-8 left-8 flex items-center gap-2 lg:hidden">
+                    <img src="/logo.jpg" alt="Logo" className="w-8 h-8 rounded-lg" />
+                    <span className="font-bold text-2xl text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">NhanZ</span>
+                </div>
 
                 <div className="w-full max-w-md space-y-8 glass p-8 rounded-3xl border border-white/5">
                     <div className="text-center">

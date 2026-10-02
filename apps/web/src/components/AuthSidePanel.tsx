@@ -40,8 +40,8 @@ export function AuthSidePanel() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                 >
                     <div className="flex items-center justify-center mb-6">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center glow-md mb-4">
-                            <MessageCircle className="w-8 h-8 text-white" />
+                        <div className="w-24 h-24 rounded-3xl overflow-hidden glow-md mb-4 border border-border">
+                            <img src="/logo.jpg" alt="NhanZ Logo" className="w-full h-full object-cover" />
                         </div>
                     </div>
                     <h1 className="text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/70">

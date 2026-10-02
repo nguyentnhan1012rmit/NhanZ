@@ -15,6 +15,8 @@ import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useAuthStore } from "@/stores/useAuthStore";
 import { toast } from "sonner";
 import { UserProfilePanel } from "@/components/UserProfilePanel";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
     id: string;
@@ -195,6 +197,7 @@ export default function ChatPage() {
 
             if (data.conversationId === activeConvRef.current) {
                 setMessages((prev) => [...prev, { ...data, text: decryptedText }]);
+                socket.emit("mark_read", { conversationId: data.conversationId, userId: user?.id });
             }
         });
 
@@ -513,7 +516,7 @@ export default function ChatPage() {
                                 )}
                             </Button>
                         </SheetTrigger>
-                        <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl border-l border-[var(--glass-border)] p-0 flex flex-col">
+                        <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl border-l border-[var(--glass-border)] p-0 flex flex-col" aria-describedby={undefined}>
                             <SheetHeader className="p-4 border-b border-[var(--glass-border)]">
                                 <SheetTitle className="flex items-center gap-2">
                                     <Pin className="w-5 h-5 text-yellow-500" />
@@ -581,8 +584,8 @@ export default function ChatPage() {
                                 return (
                                     <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`flex items-end gap-2 max-w-[80%] ${isMe ? 'flex-row-reverse' : ''}`}>
-                                            <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse shrink-0"></div>
-                                            <div className={`h-12 w-48 rounded-2xl animate-pulse ${isMe ? 'bg-primary/20 rounded-br-sm' : 'bg-white/5 rounded-bl-sm'}`}></div>
+                                            <div className="w-8 h-8 rounded-full skeleton-shimmer shrink-0"></div>
+                                            <div className={`h-12 w-48 rounded-2xl skeleton-shimmer ${isMe ? 'rounded-br-sm' : 'rounded-bl-sm'}`}></div>
                                         </div>
                                     </div>
                                 );
@@ -667,7 +670,15 @@ export default function ChatPage() {
                                                             </a>
                                                         )
                                                     )}
-                                                    <p className={`${fontSize === 'small' ? 'text-xs' : fontSize === 'large' ? 'text-base' : 'text-sm'} leading-relaxed whitespace-pre-wrap`}>{msg.deletedAt ? "This message was deleted" : msg.text}</p>
+                                                    <div className={`${fontSize === 'small' ? 'text-xs' : fontSize === 'large' ? 'text-base' : 'text-sm'} leading-relaxed whitespace-pre-wrap max-w-none [&_p]:my-0 [&_pre]:my-1 [&_pre]:bg-black/30 [&_pre]:p-2 [&_pre]:rounded-md [&_code]:bg-black/30 [&_code]:rounded-sm [&_code]:px-1 [&_a]:text-blue-300 [&_a]:underline`}>
+                                                        {msg.deletedAt ? (
+                                                            "This message was deleted"
+                                                        ) : (
+                                                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                                {msg.text}
+                                                            </ReactMarkdown>
+                                                        )}
+                                                    </div>
 
                                                     <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${msg.deletedAt ? 'opacity-50' : isMe ? 'opacity-80 text-white/80' : 'text-muted-foreground'}`}>
                                                         <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -949,6 +960,7 @@ export default function ChatPage() {
                 onClose={() => setIsProfileOpen(false)} 
                 user={otherUser || null}
                 isGroup={activeConv?.isGroup}
+                conversation={activeConv}
             />
         </div>
     );

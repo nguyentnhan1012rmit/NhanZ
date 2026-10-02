@@ -129,3 +129,72 @@ export const createGroupConversation = async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to create group" });
     }
 };
+
+export const addMembers = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { userIds } = req.body;
+    const currentUserId = req.userId!;
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+        return res.status(400).json({ error: "Missing user IDs" });
+    }
+
+    try {
+        const conversation = await prisma.conversation.findUnique({ where: { id } });
+        if (!conversation || !conversation.isGroup) return res.status(400).json({ error: "Invalid group" });
+
+        const membersData = userIds.map(userId => ({
+            userId,
+            conversationId: id
+        }));
+
+        await prisma.conversationMember.createMany({
+            data: membersData,
+            skipDuplicates: true
+        });
+
+        res.json({ message: "Members added" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to add members" });
+    }
+};
+
+export const removeMember = async (req: Request, res: Response) => {
+    const { id, userId } = req.params;
+    
+    try {
+        await prisma.conversationMember.delete({
+            where: {
+                userId_conversationId: {
+                    userId,
+                    conversationId: id
+                }
+            }
+        });
+        res.json({ message: "Member removed" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to remove member" });
+    }
+};
+
+export const leaveGroup = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const currentUserId = req.userId!;
+
+    try {
+        await prisma.conversationMember.delete({
+            where: {
+                userId_conversationId: {
+                    userId: currentUserId,
+                    conversationId: id
+                }
+            }
+        });
+        res.json({ message: "Left group" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Failed to leave group" });
+    }
+};
