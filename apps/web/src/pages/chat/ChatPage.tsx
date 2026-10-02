@@ -48,7 +48,7 @@ import { useThemeStore } from "@/stores/useThemeStore";
 
 export default function ChatPage() {
     const { socket, isConnected } = useSocket();
-    const { user } = useAuthStore();
+    const { user, theme } = useAuthStore();
     const { activeConversationId, setActiveConversation, updateConversationLastMessage, typingUsers, setTyping, conversations, onlineUsers, toggleReaction, editMessage, deleteMessage, togglePinMessage } = useChatStore();
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputText, setInputText] = useState("");
@@ -60,7 +60,7 @@ export default function ChatPage() {
     const [otherUserReadAt, setOtherUserReadAt] = useState<Date | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const { theme } = useThemeStore();
+
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
     const [isPinnedOpen, setIsPinnedOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -945,7 +945,7 @@ export default function ChatPage() {
             <UserProfilePanel 
                 isOpen={isProfileOpen} 
                 onClose={() => setIsProfileOpen(false)} 
-                user={otherUser}
+                user={otherUser || null}
                 isGroup={activeConv?.isGroup}
             />
         </div>

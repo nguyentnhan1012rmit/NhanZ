@@ -20,7 +20,6 @@ import appRoutes from "./routes/app.routes";
 import messageRoutes from "./routes/message.routes";
 import prisma from "./lib/prisma";
 import { authMiddleware } from "./lib/authMiddleware";
-import { authMiddleware } from "./lib/authMiddleware";
 
 app.use(cors());
 app.use(express.json());

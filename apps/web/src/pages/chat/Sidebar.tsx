@@ -168,16 +168,16 @@ export function Sidebar() {
                                             )}
                                         </div>
                                         <div className="flex-1 overflow-hidden">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium truncate">{name}</span>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="font-medium truncate flex-1 min-w-0">{name}</span>
                                                 {c.messages?.[0]?.createdAt && (
                                                     <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
                                                         {new Date(c.messages[0].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </span>
                                                 )}
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-sm text-muted-foreground truncate pr-2">
+                                            <div className="flex items-center justify-between gap-2 mt-0.5">
+                                                <p className="text-sm text-muted-foreground truncate flex-1 min-w-0">
                                                     {c.messages?.[0]?.content || "Start a conversation"}
                                                 </p>
                                                 {unreadCounts[c.id] ? (
