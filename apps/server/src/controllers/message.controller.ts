@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
-
 // Get messages for a specific room (or general chat)
 export const getMessages = async (req: Request, res: Response) => {
     try {
@@ -29,6 +28,7 @@ export const getMessages = async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to fetch messages" });
     }
 };
+
 
 // Create a default/general conversation if it helps
 export const getGeneralConversation = async (req: Request, res: Response) => {

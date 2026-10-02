@@ -88,10 +88,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const user = useAuthStore.getState().user;
             if (!user) return;
 
-            // Hack: Pass ID in header because we don't have middleware yet
-            const res = await api.get("/api/app/users", {
-                headers: { 'x-user-id': user.id }
-            });
+            const res = await api.get("/api/app/users");
             set({ users: res.data });
         } catch (error) {
             console.error("Failed to fetch users", error);
@@ -106,13 +103,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const user = useAuthStore.getState().user;
             if (!user) return;
 
-            const res = await api.get("/api/app", {
-                headers: { 'x-user-id': user.id }
-            });
+            const res = await api.get("/api/app");
             
             const decryptedConversations = await Promise.all(res.data.map(async (c: any) => {
-                if (c.lastMessage) {
-                    c.lastMessage.content = await decryptMessage(c.lastMessage.content, c.id);
+                // Backend returns messages[] array with the latest message
+                if (c.messages && c.messages.length > 0 && c.messages[0].content) {
+                    try {
+                        c.messages[0].content = await decryptMessage(c.messages[0].content, c.id);
+                    } catch {
+                        // If decryption fails, keep original content
+                    }
                 }
                 return c;
             }));
@@ -130,9 +130,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const user = useAuthStore.getState().user;
             if (!user) return;
 
-            const res = await api.post("/api/app", { targetUserId }, {
-                headers: { 'x-user-id': user.id }
-            });
+            const res = await api.post("/api/app", { targetUserId });
 
             const newConv = res.data;
             set((state) => {
@@ -162,9 +160,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const user = useAuthStore.getState().user;
             if (!user) return;
 
-            const res = await api.post("/api/app/group", { name, userIds }, {
-                headers: { 'x-user-id': user.id }
-            });
+            const res = await api.post("/api/app/group", { name, userIds });
 
             const newConv = res.data;
             set((state) => ({

@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 
 export function AuthSidePanel() {
     return (
-        <div className="hidden lg:flex w-[60%] flex-col justify-center items-center relative overflow-hidden bg-gradient-to-br from-background via-[#0f1b29] to-[#0ea5e9]/20">
+        <div className="hidden lg:flex w-[60%] flex-col justify-center items-center relative overflow-hidden bg-gradient-to-br from-background via-secondary to-primary/20">
             {/* Ambient animated shapes */}
             <motion.div 
                 animate={{ 
@@ -23,6 +23,14 @@ export function AuthSidePanel() {
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 className="absolute -bottom-1/4 -right-1/4 w-[600px] h-[600px] bg-accent/10 rounded-full blur-3xl mix-blend-screen"
             />
+            <motion.div 
+                animate={{ 
+                    scale: [1, 1.3, 1],
+                    opacity: [0.05, 0.12, 0.05]
+                }}
+                transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+                className="absolute top-1/3 right-1/4 w-[400px] h-[400px] bg-accent/15 rounded-full blur-3xl"
+            />
 
             {/* Content */}
             <div className="relative z-10 flex flex-col items-center text-center max-w-md">
@@ -32,11 +40,11 @@ export function AuthSidePanel() {
                     transition={{ duration: 0.8, ease: "easeOut" }}
                 >
                     <div className="flex items-center justify-center mb-6">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center glow-sm mb-4">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center glow-md mb-4">
                             <MessageCircle className="w-8 h-8 text-white" />
                         </div>
                     </div>
-                    <h1 className="text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
+                    <h1 className="text-5xl font-extrabold tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-foreground to-foreground/70">
                         NhanZ
                     </h1>
                     <p className="text-xl text-muted-foreground font-medium">
@@ -50,7 +58,7 @@ export function AuthSidePanel() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.5, duration: 0.5 }}
-                        className="absolute left-0 top-0 glass px-4 py-2 rounded-2xl rounded-bl-sm text-sm"
+                        className="absolute left-0 top-0 glass px-4 py-2 rounded-2xl rounded-bl-sm text-sm border border-[var(--glass-border)]"
                     >
                         Hey! Have you seen the new design? ✨
                     </motion.div>
@@ -61,6 +69,14 @@ export function AuthSidePanel() {
                         className="absolute right-0 top-12 bg-primary/20 backdrop-blur-md px-4 py-2 rounded-2xl rounded-br-sm text-sm border border-primary/30 text-primary-foreground"
                     >
                         It looks amazing! 🚀
+                    </motion.div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 2.5, duration: 0.5 }}
+                        className="absolute left-8 top-24 glass px-4 py-2 rounded-2xl rounded-bl-sm text-sm border border-[var(--glass-border)]"
+                    >
+                        End-to-end encrypted 🔒
                     </motion.div>
                 </div>
             </div>

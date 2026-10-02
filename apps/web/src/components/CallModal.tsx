@@ -228,7 +228,7 @@ export function CallModal() {
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
                 exit={{ opacity: 0 }}
-                className={`fixed z-50 flex items-center justify-center bg-black/80 backdrop-blur-md ${isFullscreen ? 'inset-0' : 'bottom-4 right-4 w-[350px] h-[500px] rounded-2xl overflow-hidden shadow-2xl border border-white/10'}`}
+                className={`fixed z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md ${isFullscreen ? 'inset-0' : 'bottom-4 right-4 w-[350px] h-[500px] rounded-2xl overflow-hidden shadow-2xl border border-[var(--glass-border)]'}`}
             >
                 <div className="relative w-full h-full flex flex-col items-center justify-center bg-gray-900">
                     

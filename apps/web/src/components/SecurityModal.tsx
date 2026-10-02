@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { API_URL } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 interface SecurityModalProps {
@@ -35,32 +35,27 @@ export function SecurityModal({ open, onOpenChange }: SecurityModalProps) {
 
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/auth/change-password`, {
-                method: "POST",
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-id': user?.id || ''
-                },
-                body: JSON.stringify({
-                    currentPassword,
-                    newPassword
-                })
+            const res = await api.post('/api/auth/change-password', {
+                currentPassword,
+                newPassword
             });
 
-            const data = await res.json();
+            const data = res.data;
 
-            if (res.ok) {
+            if (data) {
                 toast.success("Password updated successfully");
                 setCurrentPassword("");
                 setNewPassword("");
                 setConfirmPassword("");
                 onOpenChange(false);
-            } else {
-                toast.error(data.error || "Failed to update password");
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error("An error occurred");
+            if (error.response?.data?.error) {
+                toast.error(error.response.data.error);
+            } else {
+                toast.error("An error occurred");
+            }
         } finally {
             setIsLoading(false);
         }

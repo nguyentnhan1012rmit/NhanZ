@@ -7,6 +7,7 @@ const router = Router();
 router.post("/upload", upload.single("attachment"), uploadAttachment);
 router.get("/general", getGeneralConversation);
 router.get("/:conversationId/receipts", getReadReceipts);
+
 router.get("/:conversationId", getMessages);
 router.post("/:messageId/react", toggleReaction);
 router.post("/:conversationId/read", markAsRead);

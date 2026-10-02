@@ -20,7 +20,7 @@ import appRoutes from "./routes/app.routes";
 import messageRoutes from "./routes/message.routes";
 import prisma from "./lib/prisma";
 import { authMiddleware } from "./lib/authMiddleware";
-import { ensureAIBot, generateAIResponse, AI_BOT_ID } from "./lib/ai";
+import { authMiddleware } from "./lib/authMiddleware";
 
 app.use(cors());
 app.use(express.json());
@@ -107,41 +107,7 @@ io.on("connection", (socket) => {
                 attachmentType: savedMessage.attachmentType
             });
 
-            // Intercept AI messages
-            if (data.text.trim().toLowerCase().startsWith("/ai") || data.text.trim().toLowerCase().startsWith("@ai")) {
-                // Background async task so we don't block
-                (async () => {
-                    try {
-                        const botResponse = await generateAIResponse(data.text);
-                        const aiMessage = await prisma.message.create({
-                            data: {
-                                content: botResponse,
-                                senderId: AI_BOT_ID,
-                                conversationId: data.conversationId,
-                            },
-                            include: {
-                                sender: {
-                                    select: {
-                                        id: true,
-                                        username: true,
-                                        avatar: true,
-                                    }
-                                }
-                            }
-                        });
-                        io.to(data.conversationId).emit("receive_message", {
-                            id: aiMessage.id,
-                            text: aiMessage.content,
-                            senderId: aiMessage.senderId,
-                            conversationId: aiMessage.conversationId,
-                            timestamp: aiMessage.createdAt,
-                            sender: aiMessage.sender
-                        });
-                    } catch (err) {
-                        console.error("AI Error:", err);
-                    }
-                })();
-            }
+
 
         } catch (error) {
             console.error("Error saving message", error);
@@ -202,8 +168,6 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 4000;
 
-ensureAIBot().then(() => {
-    httpServer.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-    });
+httpServer.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });

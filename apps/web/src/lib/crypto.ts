@@ -1,4 +1,8 @@
+const keyCache = new Map<string, CryptoKey>();
+
 export const generateKey = async (password: string) => {
+  if (keyCache.has(password)) return keyCache.get(password)!;
+
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -7,11 +11,12 @@ export const generateKey = async (password: string) => {
     false,
     ["deriveBits", "deriveKey"]
   );
-  return crypto.subtle.deriveKey(
+  
+  const key = await crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt: enc.encode("nhanz-e2ee-salt-v1"),
-      iterations: 100000,
+      salt: enc.encode("nhanz-e2ee-salt-v1"), // TODO: Use per-conversation salt from DB
+      iterations: 10000, // Reduced from 100000 for web performance
       hash: "SHA-256"
     },
     keyMaterial,
@@ -19,6 +24,9 @@ export const generateKey = async (password: string) => {
     true,
     ["encrypt", "decrypt"]
   );
+
+  keyCache.set(password, key);
+  return key;
 };
 
 export const encryptMessage = async (text: string, conversationId: string) => {

@@ -6,10 +6,15 @@ import { useCallStore } from "@/stores/useCallStore";
 import { encryptMessage, decryptMessage } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock, ChevronLeft } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock, ChevronLeft, Search, X, Mic, Square } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from "@/components/ui/context-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useAuthStore } from "@/stores/useAuthStore";
+import { toast } from "sonner";
+import { UserProfilePanel } from "@/components/UserProfilePanel";
 
 interface Message {
     id: string;
@@ -30,6 +35,12 @@ interface Message {
     pinnedBy?: string;
     translatedText?: string;
     isTranslating?: boolean;
+    replyTo?: {
+        id: string;
+        content?: string;
+        text?: string;
+        sender?: { id: string; username: string; avatar?: string };
+    };
 }
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -49,22 +60,31 @@ export default function ChatPage() {
     const [otherUserReadAt, setOtherUserReadAt] = useState<Date | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const { theme } = useThemeStore();
+    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+    const [isPinnedOpen, setIsPinnedOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [lightboxMedia, setLightboxMedia] = useState<{url: string, type: 'image' | 'video'} | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    
+
+    
+    // Voice Message State
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Local state to track which conversation we are currently showing messages for
     // This helps avoid race conditions or flickering when switching
-    const [currentConvId, setCurrentConvId] = useState<string | null>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const { bubbleStyle, fontSize, chatDensity } = useThemeStore();
 
-    // Slash commands
-    const AI_COMMANDS = [
-        { cmd: "/ai summarize", desc: "Summarize the chat", icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
-        { cmd: "/ai translate ", desc: "Translate text", icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
-        { cmd: "/ai explain ", desc: "Explain a concept", icon: <Sparkles className="w-4 h-4 text-purple-400" /> }
-    ];
-    const filteredCommands = AI_COMMANDS.filter(c => c.cmd.toLowerCase().startsWith(inputText.toLowerCase()));
-    const showSlashMenu = inputText.startsWith("/") && filteredCommands.length > 0;
+
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const activeConvRef = useRef<string | null>(activeConversationId);
@@ -95,11 +115,13 @@ export default function ChatPage() {
                     editedAt: m.editedAt,
                     deletedAt: m.deletedAt,
                     attachmentUrl: m.attachmentUrl,
-                    attachmentType: m.attachmentType
+                    attachmentType: m.attachmentType,
+                    isPinned: m.isPinned,
+                    pinnedBy: m.pinnedBy,
+                    replyTo: m.replyTo,
                 })));
                 
                 setMessages(mappedMessages);
-                setCurrentConvId(activeConversationId);
 
                 // Fetch read receipts
                 const receiptsRes = await api.get(`/api/messages/${activeConversationId}/receipts`);
@@ -127,6 +149,8 @@ export default function ChatPage() {
 
         loadMessages();
     }, [activeConversationId, socket]);
+
+
 
     const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInputText(e.target.value);
@@ -234,13 +258,69 @@ export default function ChatPage() {
             socket.off("messages_read");
             socket.off("message_pinned");
         };
-    }, [socket, currentConvId, updateConversationLastMessage, setTyping]);
+    }, [socket, updateConversationLastMessage, setTyping]);
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages]);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                if (audioChunksRef.current.length > 0) {
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                    const file = new File([audioBlob], `voice-message-${Date.now()}.webm`, { type: 'audio/webm' });
+                    setSelectedFile(file);
+                    setTimeout(() => {
+                        const sendBtn = document.getElementById("send-btn-submit");
+                        if (sendBtn) sendBtn.click();
+                    }, 100);
+                }
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+            recordingTimerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            toast.error("Microphone access denied");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            setIsRecording(false);
+            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        }
+    };
+
+    const cancelRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            audioChunksRef.current = []; // Clear chunks so it doesn't upload
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            setIsRecording(false);
+            if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        }
+    };
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -300,18 +380,7 @@ export default function ChatPage() {
         setReplyToMessage(null);
     };
 
-    const handleTranslate = async (messageId: string, text: string) => {
-        setMessages((prev) => prev.map(m => m.id === messageId ? { ...m, isTranslating: true } : m));
-        
-        // Mock translation delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        setMessages((prev) => prev.map(m => m.id === messageId ? { 
-            ...m, 
-            isTranslating: false,
-            translatedText: `[Translation]: ${text.split(' ').reverse().join(' ')}` 
-        } : m));
-    };
+
 
     const activeConv = conversations.find(c => c.id === activeConversationId);
     const otherUser = activeConv?.members?.find((m: any) => m.user.username !== user?.username)?.user;
@@ -319,64 +388,165 @@ export default function ChatPage() {
     const chatAvatar = activeConv?.isGroup ? null : otherUser?.avatar;
     const isOtherUserOnline = otherUser?.id ? onlineUsers.has(otherUser.id) : false;
 
+    const filteredMessages = isSearchOpen && searchQuery.trim()
+        ? messages.filter(m => m.text.toLowerCase().includes(searchQuery.toLowerCase()))
+        : messages;
+
     if (!activeConversationId) {
         return (
             <div className="flex-1 flex items-center justify-center bg-transparent text-muted-foreground relative overflow-hidden">
-                <div className="text-center z-10">
-                    <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} className="inline-block">
-                        <MessageCircle className="w-20 h-20 mx-auto mb-6 text-primary/40 drop-shadow-[0_0_15px_rgba(14,165,233,0.4)]" />
+                {/* Ambient background */}
+                <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-float" />
+                    <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-accent/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+                </div>
+                <div className="text-center z-10 animate-fade-slide-up">
+                    <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }} className="inline-block">
+                        <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center border border-[var(--glass-border)] glow-sm">
+                            <MessageCircle className="w-12 h-12 text-primary/60" />
+                        </div>
                     </motion.div>
                     <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-3">Start a conversation</h2>
-                    <p className="text-lg">Select a contact from the sidebar to chat.</p>
+                    <p className="text-lg text-muted-foreground">Select a contact from the sidebar to chat</p>
+                    <p className="text-sm text-muted-foreground/60 mt-2">or press <kbd className="px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground text-xs font-mono">Ctrl+K</kbd> to search</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-transparent relative">
+        <div 
+            className="flex-1 flex flex-col h-full bg-transparent relative"
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+            onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setSelectedFile(e.dataTransfer.files[0]);
+                }
+            }}
+        >
+            {isDragging && (
+                <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center border-4 border-dashed border-primary m-4 rounded-3xl animate-in fade-in pointer-events-none">
+                    <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mb-4 animate-bounce">
+                        <Paperclip className="w-12 h-12 text-primary" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">Drop file to upload</h2>
+                </div>
+            )}
+            
             {/* Chat Header */}
-            <div className="h-16 border-b border-white/5 glass flex items-center justify-between px-2 md:px-6 z-10 backdrop-blur-xl bg-background/40">
+            <div className="h-16 border-b border-[var(--glass-border)] glass flex items-center justify-between px-2 md:px-6 z-10">
                 <div className="flex items-center gap-1 md:gap-3">
-                    <Button variant="ghost" size="icon" className="md:hidden mr-1" onClick={() => setActiveConversation(null)}>
+                    <Button variant="ghost" size="icon" className="md:hidden mr-1" onClick={() => setActiveConversation("")}>
                         <ChevronLeft className="w-6 h-6" />
                     </Button>
-                    <div className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center overflow-hidden border border-white/5 shrink-0">
-                        {chatAvatar ? (
-                            <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
-                        ) : (
-                            <MessageCircle className="w-5 h-5 text-muted-foreground" />
-                        )}
-                    </div>
-                    <div>
-                        <h2 className="font-semibold text-lg leading-tight text-foreground flex items-center gap-2">
-                            {chatName}
-                            {!activeConv?.isGroup && (
-                                <span title="Messages are end-to-end encrypted" className="cursor-help flex items-center justify-center p-1 bg-green-500/20 text-green-500 rounded-full">
-                                    <Lock className="w-3 h-3" />
-                                </span>
+                    <div 
+                        className="flex items-center gap-1 md:gap-3 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-xl transition-colors"
+                        onClick={() => setIsProfileOpen(true)}
+                    >
+                        <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-[var(--glass-border)] shrink-0">
+                            {chatAvatar ? (
+                                <img src={chatAvatar} alt={chatName} className="w-full h-full object-cover" />
+                            ) : (
+                                <MessageCircle className="w-5 h-5 text-muted-foreground" />
                             )}
-                        </h2>
-                        {!activeConv?.isGroup ? (
-                            <p className="text-xs flex items-center gap-1.5 mt-0.5">
-                                <span className={`w-2 h-2 rounded-full ${isOtherUserOnline ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-slate-500'}`} />
-                                <span className="text-muted-foreground">{isOtherUserOnline ? 'Online' : 'Offline'}</span>
-                            </p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground">{activeConv.members?.length} members</p>
-                        )}
+                        </div>
+                        <div>
+                            <h2 className="font-semibold text-lg leading-tight text-foreground flex items-center gap-2">
+                                {chatName}
+                                {!activeConv?.isGroup && (
+                                    <span title="Messages are end-to-end encrypted" className="cursor-help flex items-center justify-center p-1 bg-green-500/20 text-green-500 rounded-full">
+                                        <Lock className="w-3 h-3" />
+                                    </span>
+                                )}
+                            </h2>
+                            {!activeConv?.isGroup ? (
+                                <p className="text-xs flex items-center gap-1.5 mt-0.5">
+                                    <span className={`w-2 h-2 rounded-full ${isOtherUserOnline ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-slate-500'}`} />
+                                    <span className="text-muted-foreground">{isOtherUserOnline ? 'Online' : 'Offline'}</span>
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">{activeConv.members?.length} members</p>
+                            )}
+                        </div>
                     </div>
                 </div>
                 
                 {/* E2EE Banner for direct messages */}
                 {!activeConv?.isGroup && (
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-2 bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] px-3 py-0.5 rounded-b-lg backdrop-blur-md flex items-center gap-1 shadow-sm">
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-2 bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-[10px] px-3 py-0.5 rounded-b-lg backdrop-blur-md flex items-center gap-1 shadow-sm">
                         <Lock className="w-2.5 h-2.5" />
                         End-to-End Encrypted
                     </div>
                 )}
 
                 <div className="flex items-center gap-2">
+                    {isSearchOpen ? (
+                        <div className="flex items-center gap-2 bg-[var(--glass-input)] border border-[var(--glass-border)] rounded-full px-3 py-1 animate-in fade-in slide-in-from-right-4">
+                            <Search className="w-4 h-4 text-muted-foreground" />
+                            <input 
+                                type="text"
+                                placeholder="Search messages..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-transparent border-none focus:outline-none text-sm w-32 md:w-48 text-foreground"
+                                autoFocus
+                            />
+                            <Button variant="ghost" size="icon" className="w-5 h-5 rounded-full hover:bg-white/10" onClick={() => { setIsSearchOpen(false); setSearchQuery(""); }}>
+                                <X className="w-3 h-3" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <Button variant="ghost" size="icon" className="hover:bg-white/5" onClick={() => setIsSearchOpen(true)}>
+                            <Search className="w-5 h-5 text-muted-foreground" />
+                        </Button>
+                    )}
+                    
+                    <Sheet open={isPinnedOpen} onOpenChange={setIsPinnedOpen}>
+                        <SheetTrigger asChild>
+                            <Button variant="ghost" size="icon" className="hover:bg-white/5 relative">
+                                <Pin className="w-5 h-5 text-muted-foreground" />
+                                {messages.filter(m => m.isPinned && !m.deletedAt).length > 0 && (
+                                    <span className="absolute top-1 right-1 w-2 h-2 bg-yellow-500 rounded-full shadow-[0_0_5px_rgba(234,179,8,0.5)]"></span>
+                                )}
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-[300px] sm:w-[400px] bg-background/95 backdrop-blur-xl border-l border-[var(--glass-border)] p-0 flex flex-col">
+                            <SheetHeader className="p-4 border-b border-[var(--glass-border)]">
+                                <SheetTitle className="flex items-center gap-2">
+                                    <Pin className="w-5 h-5 text-yellow-500" />
+                                    Pinned Messages
+                                </SheetTitle>
+                            </SheetHeader>
+                            <ScrollArea className="flex-1 p-4">
+                                {messages.filter(m => m.isPinned && !m.deletedAt).length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center h-full text-muted-foreground pt-20">
+                                        <Pin className="w-12 h-12 mb-4 opacity-20" />
+                                        <p>No pinned messages yet</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {messages.filter(m => m.isPinned && !m.deletedAt).reverse().map(msg => (
+                                            <div key={msg.id} className="bg-[var(--glass-input)] border border-[var(--glass-border)] rounded-xl p-3 cursor-pointer hover:bg-[var(--glass-hover)] transition-colors" onClick={() => {
+                                                setIsPinnedOpen(false);
+                                                const el = document.getElementById(`msg-${msg.id}`);
+                                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            }}>
+                                                <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+                                                    <span className="font-medium text-foreground">{msg.sender?.username || "Someone"}</span>
+                                                    <span>{new Date(msg.timestamp).toLocaleDateString()}</span>
+                                                </div>
+                                                <p className="text-sm line-clamp-3 text-foreground">{msg.text}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                        </SheetContent>
+                    </Sheet>
+
                     <Button variant="ghost" size="icon" className="hover:bg-white/5" onClick={() => {
                         if (socket && otherUser) {
                             socket.emit("call_initiate", { targetUserId: otherUser.id, callerId: user?.id, callerName: user?.name || user?.username, isVideo: false });
@@ -427,9 +597,8 @@ export default function ChatPage() {
                     )}
 
                     <AnimatePresence>
-                        {messages.map((msg, idx) => {
+                        {filteredMessages.map((msg, idx) => {
                             const isMe = msg.senderId === user?.id;
-                            const isAiBot = msg.sender?.id === "system-ai-bot";
                             return (
                                 <motion.div
                                     key={msg.id || idx}
@@ -449,16 +618,13 @@ export default function ChatPage() {
                                                             msg.sender?.username?.[0]?.toUpperCase() || "?"
                                                         )}
                                                     </div>
-                                                    {isAiBot && (
-                                                        <div className="absolute -bottom-1 -right-1 bg-gradient-to-r from-purple-500 to-indigo-500 text-white text-[8px] font-bold px-1 rounded-sm border border-background">AI</div>
-                                                    )}
                                                 </div>
                                             )}
                                             <div className="flex flex-col gap-1">
                                                 {msg.replyTo && !msg.deletedAt && (
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-white/5 border border-white/10 rounded-lg p-2 mb-1 cursor-pointer hover:bg-white/10 transition-colors"
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-[var(--glass-input)] border border-[var(--glass-border)] rounded-lg p-2 mb-1 cursor-pointer hover:bg-[var(--glass-hover)] transition-colors"
                                                          onClick={() => {
-                                                             const el = document.getElementById(`msg-${msg.replyTo.id}`);
+                                                             const el = document.getElementById(`msg-${msg.replyTo!.id}`);
                                                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                                          }}>
                                                         <CornerUpLeft className="w-3 h-3" />
@@ -467,40 +633,39 @@ export default function ChatPage() {
                                                     </div>
                                                 )}
                                                 <div id={`msg-${msg.id}`} className={`p-3 ${bubbleStyle === 'sharp' ? 'rounded-md' : bubbleStyle === 'cloud' ? 'rounded-[2rem]' : 'rounded-2xl'} ${
-                                                    msg.deletedAt ? 'bg-white/5 border border-white/10 rounded-bl-sm text-muted-foreground italic' 
-                                                    : isMe ? 'bg-gradient-to-r from-primary to-[#0284c7] text-white rounded-br-sm shadow-[0_4px_15px_rgba(14,165,233,0.2)] border-0'
-                                                    : isAiBot ? 'bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-purple-500/30 rounded-bl-sm text-foreground shadow-[0_0_15px_rgba(168,85,247,0.1)]'
-                                                    : 'glass border border-white/10 rounded-bl-sm text-foreground'
+                                                    msg.deletedAt ? 'bg-[var(--glass-input)] border border-[var(--glass-border)] rounded-bl-sm text-muted-foreground italic' 
+                                                    : isMe ? 'bg-gradient-to-r from-primary to-[color-mix(in_srgb,var(--primary),#000_20%)] text-primary-foreground rounded-br-sm shadow-[0_4px_15px_rgba(14,165,233,0.2)] border-0'
+                                                    : 'glass border border-[var(--glass-border)] rounded-bl-sm text-foreground'
                                                     }`}>
                                                     {!msg.deletedAt && msg.attachmentUrl && (
                                                         msg.attachmentType === "image" ? (
-                                                            <div className="mb-2 rounded-lg overflow-hidden border border-white/10">
-                                                                <img src={msg.attachmentUrl} alt="attachment" className="max-w-full h-auto max-h-[300px] object-cover hover:scale-105 transition-transform cursor-pointer" onClick={() => window.open(msg.attachmentUrl, "_blank")} />
+                                                            <div className="mb-2 rounded-lg overflow-hidden border border-[var(--glass-border)]">
+                                                                <img src={msg.attachmentUrl} alt="attachment" className="max-w-full h-auto max-h-[300px] object-cover hover:scale-105 transition-transform cursor-pointer" onClick={() => setLightboxMedia({url: msg.attachmentUrl!, type: 'image'})} />
                                                             </div>
                                                         ) : msg.attachmentType === "video" ? (
-                                                            <div className="mb-2 rounded-lg overflow-hidden border border-white/10">
+                                                            <div className="mb-2 rounded-lg overflow-hidden border border-white/10 relative group cursor-pointer" onClick={(e) => {
+                                                                if ((e.target as HTMLElement).tagName !== 'VIDEO') setLightboxMedia({url: msg.attachmentUrl!, type: 'video'});
+                                                            }}>
                                                                 <video src={msg.attachmentUrl} controls className="max-w-full max-h-[300px]" />
+                                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                                                    <div className="bg-black/60 rounded-full p-2 backdrop-blur-sm">
+                                                                        <Search className="w-6 h-6 text-white" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ) : msg.attachmentType === "audio" ? (
+                                                            <div className="mb-2 p-2 rounded-lg bg-[var(--glass-input)] border border-[var(--glass-border)] flex items-center gap-3">
+                                                                <Mic className="w-5 h-5 text-primary shrink-0" />
+                                                                <audio src={msg.attachmentUrl} controls className="h-8 max-w-[200px]" />
                                                             </div>
                                                         ) : (
-                                                            <a href={msg.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-black/20 hover:bg-black/30 transition-colors border border-white/10 text-sm">
+                                                            <a href={msg.attachmentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-[var(--glass-input)] hover:bg-[var(--glass-hover)] transition-colors border border-[var(--glass-border)] text-sm">
                                                                 <Paperclip className="w-4 h-4" />
                                                                 <span className="underline truncate max-w-[200px]">Download File</span>
                                                             </a>
                                                         )
                                                     )}
                                                     <p className={`${fontSize === 'small' ? 'text-xs' : fontSize === 'large' ? 'text-base' : 'text-sm'} leading-relaxed whitespace-pre-wrap`}>{msg.deletedAt ? "This message was deleted" : msg.text}</p>
-                                                    
-                                                    {msg.isTranslating && (
-                                                        <div className="mt-2 text-xs italic opacity-70 flex items-center gap-2">
-                                                            <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1.5 }}>Translating...</motion.span>
-                                                        </div>
-                                                    )}
-                                                    {msg.translatedText && !msg.deletedAt && (
-                                                        <div className="mt-2 pt-2 border-t border-white/10 text-xs italic opacity-90">
-                                                            <span className="font-semibold block mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Translation</span>
-                                                            {msg.translatedText}
-                                                        </div>
-                                                    )}
 
                                                     <div className={`flex items-center gap-1 text-[10px] mt-1 select-none ${msg.deletedAt ? 'opacity-50' : isMe ? 'opacity-80 text-white/80' : 'text-muted-foreground'}`}>
                                                         <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -534,7 +699,7 @@ export default function ChatPage() {
                                                                 <div 
                                                                     key={emoji} 
                                                                     onClick={() => msg.id && toggleReaction(msg.id, emoji)}
-                                                                    className={`px-1.5 py-0.5 rounded-full text-xs cursor-pointer flex items-center gap-1 border transition-colors ${iReacted ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-black/20 border-white/10 hover:bg-white/5'}`}
+                                                                    className={`px-1.5 py-0.5 rounded-full text-xs cursor-pointer flex items-center gap-1 border transition-colors ${iReacted ? 'bg-primary/20 border-primary/30 text-primary' : 'bg-[var(--glass-input)] border-[var(--glass-border)] hover:bg-[var(--glass-hover)]'}`}
                                                                 >
                                                                     <span>{emoji}</span>
                                                                     <span className="text-[10px] opacity-80">{count}</span>
@@ -554,9 +719,7 @@ export default function ChatPage() {
                                                     <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => setReplyToMessage(msg as Message)}>
                                                         <CornerUpLeft className="w-4 h-4" /> Reply
                                                     </ContextMenuItem>
-                                                    <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => handleTranslate(msg.id, msg.text)}>
-                                                        <Sparkles className="w-4 h-4" /> Translate
-                                                    </ContextMenuItem>
+
                                                     <ContextMenuItem className="cursor-pointer flex items-center gap-2" onClick={() => msg.id && togglePinMessage(msg.id)}>
                                                         <Pin className="w-4 h-4" /> {msg.isPinned ? "Unpin" : "Pin"}
                                                     </ContextMenuItem>
@@ -641,6 +804,7 @@ export default function ChatPage() {
             {/* Chat Input */}
             <div className="p-4 relative z-10 mt-auto">
                 <form onSubmit={sendMessage} className="max-w-6xl mx-auto w-full flex flex-col gap-2 relative px-2 md:px-6">
+
                     {editingMessageId && (
                         <div className="flex items-center justify-between bg-primary/10 border border-primary/20 px-4 py-1.5 rounded-t-xl -mb-4 pb-5 z-0 text-xs text-primary">
                             <span className="flex items-center gap-1.5"><Edit2 className="w-3 h-3" /> Editing message</span>
@@ -662,69 +826,128 @@ export default function ChatPage() {
                         </div>
                     )}
                     <div className="flex gap-2 items-end z-10 relative">
-                        <AnimatePresence>
-                            {showSlashMenu && (
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 10 }}
-                                    className="absolute bottom-[60px] left-12 w-64 glass border border-white/10 rounded-xl overflow-hidden shadow-2xl z-50 p-1"
-                                >
-                                    <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">AI Commands</div>
-                                    {filteredCommands.map(cmd => (
-                                        <div 
-                                            key={cmd.cmd} 
-                                            className="flex items-center gap-2 p-2 hover:bg-white/10 cursor-pointer rounded-lg transition-colors"
-                                            onClick={() => {
-                                                setInputText(cmd.cmd);
-                                                inputRef.current?.focus();
-                                            }}
-                                        >
-                                            <div className="bg-purple-500/20 p-1.5 rounded-md">
-                                                {cmd.icon}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-foreground">{cmd.cmd}</span>
-                                                <span className="text-[10px] text-muted-foreground">{cmd.desc}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+
                         <div className="relative flex-1 flex items-center">
                             <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => e.target.files?.[0] && setSelectedFile(e.target.files[0])} />
                         <Button type="button" onClick={() => fileInputRef.current?.click()} variant="ghost" size="icon" className="absolute left-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-full z-10 w-9 h-9">
                             <Paperclip className="w-4 h-4" />
                         </Button>
-                        <Input
-                            ref={inputRef}
-                            value={inputText}
-                            onChange={handleInput}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    sendMessage(e);
-                                }
-                            }}
-                            placeholder="Type a message..."
-                            className="w-full min-h-[50px] pl-12 pr-12 rounded-3xl glass bg-black/20 border-white/10 focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground"
-                        />
-                        <Button type="button" variant="ghost" size="icon" className="absolute right-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-full z-10 w-9 h-9">
-                            <Smile className="w-4 h-4" />
-                        </Button>
+                        {isRecording ? (
+                            <div className="w-full min-h-[50px] flex items-center justify-between pl-6 pr-4 rounded-3xl glass border border-red-500/50 bg-red-500/10">
+                                <div className="flex items-center gap-3 text-red-500 font-medium">
+                                    <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                                    Recording... {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                                </div>
+                                <div className="flex items-center gap-2 z-20">
+                                    <Button type="button" variant="ghost" size="icon" className="hover:bg-red-500/20 text-red-400" onClick={cancelRecording}>
+                                        <Trash className="w-4 h-4" />
+                                    </Button>
+                                    <Button type="button" variant="ghost" size="icon" className="hover:bg-red-500/20 text-red-400" onClick={stopRecording}>
+                                        <Square className="w-4 h-4 fill-current" />
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <Input
+                                ref={inputRef}
+                                value={inputText}
+                                onChange={handleInput}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                        e.preventDefault();
+                                        sendMessage(e);
+                                    }
+                                }}
+                                placeholder="Type a message..."
+                                className="w-full min-h-[50px] pl-12 pr-12 rounded-3xl glass border-[var(--glass-border)] focus-visible:ring-1 focus-visible:ring-primary/50 text-foreground"
+                            />
+                        )}
+                        {!isRecording && (
+                            <div className="absolute right-1.5 z-20">
+                                <Popover open={emojiPickerOpen} onOpenChange={setEmojiPickerOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground hover:bg-white/5 rounded-full w-9 h-9">
+                                            <Smile className="w-4 h-4" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent side="top" align="end" className="w-auto p-0 border-none bg-transparent shadow-none mb-2 z-50">
+                                        <EmojiPicker
+                                            theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+                                            onEmojiClick={(emojiData) => {
+                                                setInputText(prev => prev + emojiData.emoji);
+                                                inputRef.current?.focus();
+                                            }}
+                                            style={{ backgroundColor: 'var(--glass-input)', borderColor: 'var(--glass-border)', '--epr-bg-color': 'rgba(0,0,0,0.5)', '--epr-category-label-bg-color': 'rgba(0,0,0,0.8)' } as any}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            </div>
+                        )}
                     </div>
-                        <Button
-                            type="submit"
-                            size="icon"
-                            className="h-[50px] w-[50px] rounded-full bg-gradient-to-tr from-primary to-accent border-0 hover:opacity-90 hover:scale-105 transition-all shadow-[0_0_10px_rgba(14,165,233,0.4)] shrink-0"
-                            disabled={(!inputText.trim() && !selectedFile) || !isConnected || isUploading}
-                        >
-                            {isUploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : editingMessageId ? <Edit2 className="w-5 h-5 text-white" /> : <Send className="w-5 h-5 text-white ml-0.5" />}
-                        </Button>
+                        {(!inputText.trim() && !selectedFile && !isRecording) ? (
+                            <Button
+                                type="button"
+                                size="icon"
+                                className="h-[50px] w-[50px] rounded-full bg-[var(--glass-input)] border border-[var(--glass-border)] hover:bg-[var(--glass-hover)] transition-all shrink-0 text-foreground"
+                                onClick={startRecording}
+                            >
+                                <Mic className="w-5 h-5" />
+                            </Button>
+                        ) : (
+                            <Button
+                                id="send-btn-submit"
+                                type="submit"
+                                size="icon"
+                                className="h-[50px] w-[50px] rounded-full bg-gradient-to-tr from-primary to-accent border-0 hover:opacity-90 hover:scale-105 transition-all glow-sm shrink-0"
+                                disabled={(!inputText.trim() && !selectedFile) || !isConnected || isUploading}
+                            >
+                                {isUploading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : editingMessageId ? <Edit2 className="w-5 h-5 text-white" /> : <Send className="w-5 h-5 text-white ml-0.5" />}
+                            </Button>
+                        )}
                     </div>
                 </form>
             </div>
+            {/* Media Lightbox */}
+            <AnimatePresence>
+                {lightboxMedia && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center"
+                        onClick={() => setLightboxMedia(null)}
+                    >
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="absolute top-4 right-4 text-white hover:bg-white/10 z-50 rounded-full"
+                            onClick={() => setLightboxMedia(null)}
+                        >
+                            <X className="w-8 h-8" />
+                        </Button>
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative max-w-[90vw] max-h-[90vh]"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {lightboxMedia.type === 'image' ? (
+                                <img src={lightboxMedia.url} alt="Expanded Media" className="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl" />
+                            ) : (
+                                <video src={lightboxMedia.url} controls autoPlay className="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl" />
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            
+            <UserProfilePanel 
+                isOpen={isProfileOpen} 
+                onClose={() => setIsProfileOpen(false)} 
+                user={otherUser}
+                isGroup={activeConv?.isGroup}
+            />
         </div>
     );
 }

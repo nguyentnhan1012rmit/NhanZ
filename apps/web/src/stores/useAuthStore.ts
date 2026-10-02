@@ -50,11 +50,21 @@ export const useAuthStore = create<AuthState>((set) => ({
         set((state) => {
             const newTheme = state.theme === 'dark' ? 'light' : 'dark';
             localStorage.setItem('theme', newTheme);
-            if (newTheme === 'dark') {
-                document.documentElement.classList.add('dark');
+            
+            const updateTheme = () => {
+                if (newTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            };
+
+            if (document.startViewTransition) {
+                document.startViewTransition(updateTheme);
             } else {
-                document.documentElement.classList.remove('dark');
+                updateTheme();
             }
+
             return { theme: newTheme };
         });
     }

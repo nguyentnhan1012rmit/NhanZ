@@ -28,6 +28,9 @@ function ThemeInjector() {
   useEffect(() => {
     const hex = ACCENT_COLORS_MAP[accentColor] || ACCENT_COLORS_MAP.blue;
     document.documentElement.style.setProperty("--primary", hex);
+    document.documentElement.style.setProperty("--ring", hex);
+    document.documentElement.style.setProperty("--sidebar-primary", hex);
+    document.documentElement.style.setProperty("--sidebar-ring", hex);
   }, [accentColor]);
 
   return null;

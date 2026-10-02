@@ -43,3 +43,4 @@ coverage
 .tmp
 .cache
 /.agent
+/.agents

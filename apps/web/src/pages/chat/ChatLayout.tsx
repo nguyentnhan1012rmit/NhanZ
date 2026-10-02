@@ -1,12 +1,26 @@
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ShortcutsModal } from "@/components/ShortcutsModal";
 import { useThemeStore } from "@/stores/useThemeStore";
 import { useChatStore } from "@/stores/useChatStore";
+import { useEffect, useState } from "react";
 
 export default function ChatLayout() {
     const { backgroundPattern } = useThemeStore();
     const { activeConversationId } = useChatStore();
+    const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+                e.preventDefault();
+                setIsShortcutsOpen(true);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, []);
 
     const getBackgroundStyle = () => {
         switch (backgroundPattern) {
@@ -33,6 +47,7 @@ export default function ChatLayout() {
                 </main>
             </div>
             <CommandPalette />
+            <ShortcutsModal isOpen={isShortcutsOpen} onClose={() => setIsShortcutsOpen(false)} />
         </div>
     );
 }

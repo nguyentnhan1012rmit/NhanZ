@@ -13,11 +13,13 @@ interface ThemeState {
     bubbleStyle: BubbleStyle;
     fontSize: FontSize;
     chatDensity: ChatDensity;
+    soundEnabled: boolean;
     setAccentColor: (color: AccentColor) => void;
     setBackgroundPattern: (pattern: BackgroundPattern) => void;
     setBubbleStyle: (style: BubbleStyle) => void;
     setFontSize: (size: FontSize) => void;
     setChatDensity: (density: ChatDensity) => void;
+    setSoundEnabled: (enabled: boolean) => void;
 }
 
 export const useThemeStore = create<ThemeState>()(
@@ -28,11 +30,13 @@ export const useThemeStore = create<ThemeState>()(
             bubbleStyle: "rounded",
             fontSize: "normal",
             chatDensity: "comfortable",
+            soundEnabled: true,
             setAccentColor: (color) => set({ accentColor: color }),
             setBackgroundPattern: (pattern) => set({ backgroundPattern: pattern }),
             setBubbleStyle: (style) => set({ bubbleStyle: style }),
             setFontSize: (size) => set({ fontSize: size }),
             setChatDensity: (density) => set({ chatDensity: density }),
+            setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
         }),
         {
             name: "nhanz-theme-storage",

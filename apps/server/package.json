@@ -8,6 +8,7 @@
         "lint": "eslint src/**"
     },
     "dependencies": {
+        "@google/generative-ai": "^0.24.1",
         "@nhanz/shared": "workspace:*",
         "@prisma/client": "^5.10.0",
         "bcryptjs": "^3.0.3",

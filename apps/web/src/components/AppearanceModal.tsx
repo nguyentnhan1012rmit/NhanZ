@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useThemeStore, AccentColor, BackgroundPattern, BubbleStyle, FontSize, ChatDensity } from "@/stores/useThemeStore";
-import { Check } from "lucide-react";
+import { Check, Volume2 } from "lucide-react";
 
 interface AppearanceModalProps {
     open: boolean;
@@ -44,7 +45,8 @@ export function AppearanceModal({ open, onOpenChange }: AppearanceModalProps) {
         accentColor, setAccentColor,
         backgroundPattern, setBackgroundPattern,
         bubbleStyle, setBubbleStyle,
-        chatDensity, setChatDensity 
+        chatDensity, setChatDensity,
+        soundEnabled, setSoundEnabled
     } = useThemeStore();
 
     return (
@@ -67,7 +69,7 @@ export function AppearanceModal({ open, onOpenChange }: AppearanceModalProps) {
                                     className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
                                         accentColor === color.id ? 'ring-2 ring-offset-2 ring-offset-background scale-110' : 'hover:scale-105 opacity-80 hover:opacity-100'
                                     }`}
-                                    style={{ backgroundColor: color.hex, ringColor: color.hex }}
+                                    style={{ backgroundColor: color.hex }}
                                     title={color.name}
                                 >
                                     {accentColor === color.id && <Check className="w-5 h-5 text-white" />}
@@ -133,6 +135,20 @@ export function AppearanceModal({ open, onOpenChange }: AppearanceModalProps) {
                                     <div className="font-medium text-sm">{density.name}</div>
                                 </button>
                             ))}
+                        </div>
+                    </div>
+
+                    {/* Sound Effects */}
+                    <div className="space-y-3 pt-2 border-t border-white/10">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                                <Label className="flex items-center gap-2">
+                                    <Volume2 className="w-4 h-4 text-primary" />
+                                    Sound Effects
+                                </Label>
+                                <p className="text-xs text-muted-foreground">Play a sound when receiving a new message.</p>
+                            </div>
+                            <Switch checked={soundEnabled} onCheckedChange={setSoundEnabled} />
                         </div>
                     </div>
                 </div>

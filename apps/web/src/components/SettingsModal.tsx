@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { API_URL } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface SettingsModalProps {
     open: boolean;
@@ -40,32 +40,24 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/api/app/users/avatar`, {
-                method: "POST",
-                headers: {
-                    'x-user-id': user.id
-                },
-                body: formData
+            const res = await api.post('/api/app/users/avatar', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            const data = await res.json();
+            const data = res.data;
 
-            if (res.ok) {
-                // Update local store
-                useAuthStore.setState(state => ({
-                    user: state.user ? { ...state.user, avatar: data.avatar } : null
-                }));
-                // Persist to local storage
-                const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                localStorage.setItem('user', JSON.stringify({ ...currentUser, avatar: data.avatar }));
+            // Update local store
+            useAuthStore.setState(state => ({
+                user: state.user ? { ...state.user, avatar: data.avatar } : null
+            }));
+            // Persist to local storage
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+            localStorage.setItem('user', JSON.stringify({ ...currentUser, avatar: data.avatar }));
 
-                toast.success("Avatar updated successfully");
-            } else {
-                toast.error(data.error || "Failed to update avatar");
-            }
-        } catch (error) {
+            toast.success("Avatar updated successfully");
+        } catch (error: any) {
             console.error(error);
-            toast.error("An error occurred during upload");
+            toast.error(error.response?.data?.error || "An error occurred during upload");
         } finally {
             setIsLoading(false);
         }
@@ -76,37 +68,21 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setIsLoading(true);
 
         try {
-            const res = await fetch(`${API_URL}/api/app/users/profile`, {
-                method: "PUT",
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-user-id': user.id
-                },
-                body: JSON.stringify({
-                    name,
-                    username
-                })
-            });
+            const res = await api.put('/api/app/users/profile', { name, username });
+            const data = res.data;
 
-            const data = await res.json();
+            // Update local store
+            useAuthStore.setState(state => ({
+                user: state.user ? { ...state.user, ...data } : null
+            }));
+            // Persist to local storage
+            localStorage.setItem('user', JSON.stringify(data));
 
-            if (res.ok) {
-                // Update local store
-                useAuthStore.setState(state => ({
-                    user: state.user ? { ...state.user, ...data } : null
-                }));
-                // Persist to local storage
-                localStorage.setItem('user', JSON.stringify(data));
-
-                toast.success("Profile updated successfully");
-                onOpenChange(false);
-            } else {
-                toast.error(data.error || "Failed to update profile");
-            }
-
-        } catch (error) {
+            toast.success("Profile updated successfully");
+            onOpenChange(false);
+        } catch (error: any) {
             console.error(error);
-            toast.error("Failed to update profile");
+            toast.error(error.response?.data?.error || "Failed to update profile");
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +92,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px] glass border-white/5 text-foreground">
+            <DialogContent className="sm:max-w-[425px] glass border-[var(--glass-border)] text-foreground">
                 <DialogHeader>
                     <DialogTitle>Edit Profile</DialogTitle>
                     <DialogDescription>Make changes to your profile here.</DialogDescription>
@@ -140,7 +116,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     <div className="grid gap-4">
                         <div className="grid gap-2">
                             <Label htmlFor="name">Name</Label>
-                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" className="bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground" />
+                            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Your display name" className="bg-[var(--glass-input)] border-[var(--glass-border)] focus-visible:ring-primary/50 text-foreground" />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="username">Username</Label>
@@ -153,7 +129,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                                         const val = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
                                         setUsername(val);
                                     }}
-                                    className="pl-7 bg-black/20 border-white/10 focus-visible:ring-primary/50 text-foreground"
+                                    className="pl-7 bg-[var(--glass-input)] border-[var(--glass-border)] focus-visible:ring-primary/50 text-foreground"
                                     maxLength={16}
                                 />
                             </div>
@@ -161,14 +137,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email</Label>
-                            <Input id="email" value={user.email || "No email"} disabled className="bg-muted/50 border-white/10 opacity-70 text-foreground" />
+                            <Input id="email" value={user.email || "No email"} disabled className="bg-muted/50 border-[var(--glass-border)] opacity-70 text-foreground" />
                             <p className="text-[10px] text-muted-foreground">Email cannot be changed.</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button onClick={handleSave} disabled={isLoading} className="bg-gradient-to-r from-primary to-[#0284c7] hover:opacity-90 glow-sm border-0">Save Changes</Button>
+                    <Button onClick={handleSave} disabled={isLoading} className="bg-gradient-to-r from-primary to-[color-mix(in_srgb,var(--primary),#000_20%)] hover:opacity-90 glow-sm border-0">Save Changes</Button>
                 </div>
             </DialogContent>
         </Dialog>

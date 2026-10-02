@@ -42,7 +42,7 @@ export function Sidebar() {
 
     return (
         <div className="w-full md:w-[340px] border-r border-white/5 bg-background/60 backdrop-blur-2xl flex flex-col h-full z-10 shadow-2xl">
-            <div className="p-4 border-b flex items-center justify-between">
+            <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between">
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <div className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity p-1 rounded-md -ml-1">
@@ -57,7 +57,7 @@ export function Sidebar() {
                                     </div>
                                 </div>
                                 <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${status === 'dnd' ? 'bg-yellow-500' :
-                                    status === 'invisible' ? 'bg-red-500' :
+                                    status === 'invisible' ? 'bg-gray-500' :
                                         'bg-green-500'
                                     }`}></div>
                             </div>
@@ -100,7 +100,7 @@ export function Sidebar() {
                     <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle Theme" className="hover:bg-primary/20 hover:text-primary transition-colors">
                         {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat" className="hover:bg-primary/20 hover:text-primary transition-colors hover:shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                    <Button variant="ghost" size="icon" onClick={() => setNewChatOpen(true)} title="New Chat" className="hover:bg-primary/20 hover:text-primary transition-colors">
                         <SquarePen className="w-5 h-5" />
                     </Button>
                 </div>
@@ -113,7 +113,7 @@ export function Sidebar() {
                         placeholder="Search chats..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 bg-black/20 border-white/10 focus-visible:ring-primary/50 transition-all glass" 
+                        className="pl-8 bg-[var(--glass-input)] border-[var(--glass-border)] focus-visible:ring-primary/50 transition-all" 
                     />
                 </div>
             </div>
@@ -128,11 +128,11 @@ export function Sidebar() {
                         {isLoading ? (
                             <div className="space-y-2">
                                 {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
-                                        <div className="w-10 h-10 rounded-full bg-white/10 shrink-0"></div>
+                                    <div key={i} className="flex items-start gap-3 p-3 rounded-lg" style={{ animationDelay: `${i * 100}ms` }}>
+                                        <div className="w-10 h-10 rounded-full skeleton-shimmer shrink-0"></div>
                                         <div className="flex-1 space-y-2 py-1">
-                                            <div className="h-4 bg-white/10 rounded w-1/2"></div>
-                                            <div className="h-3 bg-white/10 rounded w-3/4"></div>
+                                            <div className="h-4 skeleton-shimmer rounded w-1/2"></div>
+                                            <div className="h-3 skeleton-shimmer rounded w-3/4"></div>
                                         </div>
                                     </div>
                                 ))}
@@ -153,10 +153,10 @@ export function Sidebar() {
                                     <div
                                         key={c.id}
                                         onClick={() => setActiveConversation(c.id)}
-                                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border-l-[3px] ${isActive ? 'bg-gradient-to-r from-primary/15 to-transparent border-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]' : 'border-transparent hover:bg-white/5 hover:border-white/20'}`}
+                                        className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border-l-[3px] ${isActive ? 'bg-gradient-to-r from-primary/15 to-transparent border-primary' : 'border-transparent hover:bg-[var(--glass-hover)]'}`}
                                     >
                                         <div className="relative">
-                                            <div className="w-10 h-10 rounded-full bg-black/20 border border-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                                            <div className="w-10 h-10 rounded-full bg-secondary border border-[var(--glass-border)] flex items-center justify-center overflow-hidden shrink-0">
                                                 {avatar ? (
                                                     <img src={avatar} alt={name} className="w-full h-full object-cover" />
                                                 ) : (

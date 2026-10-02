@@ -3,6 +3,8 @@ import { Socket } from "socket.io-client";
 import { socket } from "@/socket";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
+import { useThemeStore } from "@/stores/useThemeStore";
+import { sounds } from "@/lib/sounds";
 
 interface SocketContextType {
     socket: Socket | null;
@@ -46,6 +48,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             useChatStore.getState().removeUserOffline(userId);
         });
 
+        socket.on("receive_message", (data: any) => {
+            const currentUser = useAuthStore.getState().user;
+            if (data.senderId !== currentUser?.id) {
+                const { soundEnabled } = useThemeStore.getState();
+                if (soundEnabled) {
+                    sounds.playNotification();
+                }
+            }
+        });
+
         if (!socket.connected) {
             socket.connect();
         }
@@ -56,10 +68,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             socket.off("get_online_users");
             socket.off("user_online");
             socket.off("user_offline");
-            // In dev (Strict Mode), we avoid disconnecting to prevent connection churning
-            if ((import.meta as any).env.MODE === "production") {
-                socket.disconnect();
-            }
+            socket.off("receive_message");
+            // Do not disconnect global socket on provider unmount to prevent React Strict Mode churning
+            // It will disconnect naturally on page unload
         };
     }, []);
 

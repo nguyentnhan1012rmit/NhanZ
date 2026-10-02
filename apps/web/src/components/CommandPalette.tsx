@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Search, User, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useChatStore } from "@/stores/useChatStore";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { api } from "@/lib/api";
 
 export function CommandPalette() {
     const [open, setOpen] = useState(false);
@@ -38,17 +39,10 @@ export function CommandPalette() {
         if (existingConv) {
             setActiveConversation(existingConv.id);
         } else {
-            // Need to create new conversation (this would be better moved to chatStore)
-            // But for simple navigation, we just do it via API
             try {
-                const res = await fetch(`http://localhost:4000/api/app/conversations/direct`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-                    body: JSON.stringify({ userId: selectedUser.id })
-                });
-                const data = await res.json();
+                const res = await api.post('/api/app', { targetUserId: selectedUser.id });
                 await fetchConversations();
-                setActiveConversation(data.id);
+                setActiveConversation(res.data.id);
             } catch (err) {
                 console.error(err);
             }
