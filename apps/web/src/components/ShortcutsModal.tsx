@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Command, MessageSquare, Search, Settings, Phone, Video, Send, Mic, Paperclip } from "lucide-react";
+import { Command, MessageSquare, Send } from "lucide-react";
 
 interface ShortcutsModalProps {
     isOpen: boolean;

@@ -14,7 +14,7 @@ interface SecurityModalProps {
 }
 
 export function SecurityModal({ open, onOpenChange }: SecurityModalProps) {
-    const { user } = useAuthStore();
+    // useAuthStore not needed if only user was extracted and unused
     const [isLoading, setIsLoading] = useState(false);
 
     // Password States

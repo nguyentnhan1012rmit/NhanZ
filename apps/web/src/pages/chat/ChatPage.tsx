@@ -6,7 +6,7 @@ import { useCallStore } from "@/stores/useCallStore";
 import { encryptMessage, decryptMessage } from "@/lib/crypto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Sparkles, Pin, Lock, ChevronLeft, Search, X, Mic, Square } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, MessageCircle, Paperclip, Smile, Copy, CornerUpLeft, Edit2, Trash, Pin, Lock, ChevronLeft, Search, X, Mic, Square } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from "@/components/ui/context-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -150,7 +150,7 @@ export default function ChatPage() {
         };
 
         loadMessages();
-    }, [activeConversationId, socket]);
+    }, [activeConversationId, socket, user?.id]);
 
 
 
@@ -261,7 +261,7 @@ export default function ChatPage() {
             socket.off("messages_read");
             socket.off("message_pinned");
         };
-    }, [socket, updateConversationLastMessage, setTyping]);
+    }, [socket, updateConversationLastMessage, setTyping, user?.id]);
 
     useEffect(() => {
         if (scrollRef.current) {

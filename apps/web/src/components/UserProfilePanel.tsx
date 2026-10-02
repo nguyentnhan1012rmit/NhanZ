@@ -1,6 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Mail, Calendar, Phone, MapPin, Image as ImageIcon, Link as LinkIcon, FileText, UserMinus, LogOut } from "lucide-react";
+import { Mail, Phone, Image as ImageIcon, Link as LinkIcon, FileText, UserMinus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { api } from "@/lib/api";

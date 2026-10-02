@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuthStore } from "@/stores/useAuthStore";
-import { LogOut, Search, User, SquarePen, Lock, Shield, Moon, Sun, PieChart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { LogOut, Search, User, SquarePen, Lock, Shield, Moon, Sun } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { SettingsModal } from "@/components/SettingsModal";
 import { PrivacyModal } from "@/components/PrivacyModal";
@@ -38,7 +37,7 @@ export function Sidebar() {
     useEffect(() => {
         fetchUsers();
         fetchConversations();
-    }, []);
+    }, [fetchUsers, fetchConversations]);
 
     return (
         <div className="w-full md:w-[340px] border-r border-white/5 bg-background/60 backdrop-blur-2xl flex flex-col h-full z-10 shadow-2xl">
@@ -181,7 +180,7 @@ export function Sidebar() {
                                             <div className="flex items-center justify-between gap-2 mt-0.5">
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm text-muted-foreground truncate w-full">
-                                                        {c.messages?.[0]?.text || c.messages?.[0]?.content || "Start a conversation"}
+                                                        {(c.messages?.[0] as any)?.text || c.messages?.[0]?.content || "Start a conversation"}
                                                     </p>
                                                 </div>
                                                 {unreadCounts[c.id] ? (
