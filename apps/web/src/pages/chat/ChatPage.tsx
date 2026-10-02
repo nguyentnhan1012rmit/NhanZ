@@ -565,7 +565,9 @@ export default function ChatPage() {
                     }}>
                         <Video className="w-5 h-5 text-muted-foreground" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="hover:bg-white/5"><MoreVertical className="w-5 h-5 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon" className="hover:bg-white/5" onClick={() => setIsProfileOpen(true)}>
+                        <MoreVertical className="w-5 h-5 text-muted-foreground" />
+                    </Button>
                 </div>
             </div>
 

@@ -118,8 +118,8 @@ export function Sidebar() {
                 </div>
             </div>
 
-            <ScrollArea className="flex-1">
-                <div className="p-4 pt-0 space-y-4">
+            <ScrollArea className="flex-1 [&_[data-radix-scroll-area-viewport]>div]:!block">
+                <div className="p-4 pt-0 space-y-4 w-full overflow-hidden">
                     {/* Conversations List */}
                     <div>
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -169,7 +169,9 @@ export function Sidebar() {
                                         </div>
                                         <div className="flex-1 overflow-hidden">
                                             <div className="flex items-center justify-between gap-2">
-                                                <span className="font-medium truncate flex-1 min-w-0">{name}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="font-medium truncate block w-full">{name}</span>
+                                                </div>
                                                 {c.messages?.[0]?.createdAt && (
                                                     <span className="text-[10px] text-muted-foreground shrink-0 ml-1">
                                                         {new Date(c.messages[0].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -177,11 +179,13 @@ export function Sidebar() {
                                                 )}
                                             </div>
                                             <div className="flex items-center justify-between gap-2 mt-0.5">
-                                                <p className="text-sm text-muted-foreground truncate flex-1 min-w-0">
-                                                    {c.messages?.[0]?.content || "Start a conversation"}
-                                                </p>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-muted-foreground truncate w-full">
+                                                        {c.messages?.[0]?.text || c.messages?.[0]?.content || "Start a conversation"}
+                                                    </p>
+                                                </div>
                                                 {unreadCounts[c.id] ? (
-                                                    <div className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 min-w-4 h-4 flex items-center justify-center rounded-full shrink-0">
+                                                    <div className="bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 min-w-[16px] h-4 flex items-center justify-center rounded-full shrink-0">
                                                         {unreadCounts[c.id]}
                                                     </div>
                                                 ) : null}

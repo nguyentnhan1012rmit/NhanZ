@@ -63,6 +63,30 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         }
     };
 
+    const handleRemoveAvatar = async () => {
+        setIsLoading(true);
+        try {
+            await api.delete('/api/app/users/avatar');
+            
+            // Update local store
+            useAuthStore.setState(state => ({
+                user: state.user ? { ...state.user, avatar: undefined } : null
+            }));
+            
+            // Persist to local storage
+            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+            delete currentUser.avatar;
+            localStorage.setItem('user', JSON.stringify(currentUser));
+
+            toast.success("Avatar removed successfully");
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.response?.data?.error || "An error occurred while removing avatar");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!user) return;
         setIsLoading(true);
@@ -110,7 +134,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                                 <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={isLoading} />
                             </label>
                         </div>
-                        <p className="text-sm text-muted-foreground">Click to change avatar</p>
+                        <div className="flex items-center gap-3">
+                            <p className="text-sm text-muted-foreground">Click image to change</p>
+                            {user.avatar && (
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 text-xs"
+                                    onClick={handleRemoveAvatar}
+                                    disabled={isLoading}
+                                >
+                                    Remove
+                                </Button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid gap-4">

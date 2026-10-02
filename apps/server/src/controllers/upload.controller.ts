@@ -59,6 +59,33 @@ export const updateAvatar = async (req: Request, res: Response) => {
     }
 };
 
+export const removeAvatar = async (req: Request, res: Response) => {
+    try {
+        const userId = req.userId!;
+        if (!userId) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        // Try to remove from Cloudinary
+        try {
+            await cloudinary.uploader.destroy(`nhanz_avatars/avatar_${userId}`);
+        } catch (e) {
+            console.error("Cloudinary delete failed:", e);
+        }
+
+        // Update User in DB
+        await prisma.user.update({
+            where: { id: userId },
+            data: { avatar: null }
+        });
+
+        res.json({ message: "Avatar removed successfully" });
+    } catch (error) {
+        console.error("Remove avatar failed:", error);
+        res.status(500).json({ error: "Failed to remove avatar" });
+    }
+};
+
 export const uploadAttachment = async (req: Request, res: Response) => {
     const authReq = req as AuthenticatedRequest;
     try {
